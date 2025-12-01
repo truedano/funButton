@@ -1,20 +1,60 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Fidget Keypad (Virtual Toy)
 
-# Run and deploy your AI Studio app
+這是一個有趣的虛擬按鍵玩具網頁應用程式，讓您可以自訂按鈕、錄製聲音並進行播放。就像一個可自定義的 Soundboard，隨時隨地享受按壓按鈕的樂趣！
 
-This contains everything you need to run your app locally.
+## ✨ 主要功能
 
-View your app in AI Studio: https://ai.studio/apps/drive/13a3nDg3w9NZnZhWy_dPlH7ddRHxxarwO
+### 🎮 遊玩模式 (Play Mode)
+- **擬真介面**：可愛且具質感的實體按鍵風格設計。
+- **即時回饋**：點擊按鈕即可播放對應的音效。
+- **動態佈局**：根據按鈕數量自動調整排列方式（支援 2 欄或 3 欄佈局）。
 
-## Run Locally
+### ⚙️ 編輯模式 (Edit Mode)
+點擊右上角的設定圖示即可進入編輯模式，完全自訂您的鍵盤：
 
-**Prerequisites:**  Node.js
+- **按鈕管理**：自由新增或刪除按鈕。
+- **外觀自訂**：
+  - 修改按鈕上的文字。
+  - 選擇按鈕顏色（白色、黃色、藍色、紅色）。
+- **音效設定**：
+  - 🎙️ **錄音**：直接使用麥克風錄製專屬音效。
+  - 📤 **上傳**：支援上傳本地音訊檔案。
+  - ▶️ **預覽**：即時試聽設定的聲音。
 
+## 🛠️ 技術堆疊
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+本專案使用現代前端技術構建：
+
+- **核心框架**: [React](https://react.dev/) (v19)
+- **語言**: [TypeScript](https://www.typescriptlang.org/)
+- **建置工具**: [Vite](https://vitejs.dev/)
+- **樣式**: [Tailwind CSS](https://tailwindcss.com/)
+- **圖示**: [Lucide React](https://lucide.dev/)
+
+## 🚀 如何開始
+
+### 安裝依賴
+
+```bash
+npm install
+```
+
+### 啟動開發伺服器
+
+```bash
+npm run dev
+```
+
+### 建置生產版本
+
+```bash
+npm run build
+```
+
+## 📦 部署建議
+
+本專案為純靜態網站 (Static Web App)，非常適合部署於以下免費平台：
+
+- **Vercel** (推薦)
+- **Netlify**
+- **GitHub Pages**
