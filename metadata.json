@@ -1,0 +1,7 @@
+{
+  "name": "funButton",
+  "description": "A digital interactive version of the 4-button fidget toy with retro styling.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
