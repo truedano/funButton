@@ -452,7 +452,7 @@ const App: React.FC = () => {
                         </div>
                     </div>
                 ) : (
-                    <div className={`relative group perspective-1000 transform transition-transform duration-300 ${containerWidth}`}>
+                    <div className={`relative group perspective-1000 transform transition-transform duration-300 ${containerWidth} ${buttons.length <= 4 ? 'mt-12' : ''}`}>
                         {buttons.length <= 4 && (
                             <>
                                 <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-16 h-16 border-[6px] border-gray-300 rounded-full z-0 transform -translate-y-2" />
