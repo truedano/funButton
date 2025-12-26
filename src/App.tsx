@@ -34,6 +34,10 @@ const App: React.FC = () => {
     const [pendingRecording, setPendingRecording] = useState<{ id: string; blob: Blob; url: string } | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // --- New State for Edit Mode Preview ---
+    const [previewPlayingId, setPreviewPlayingId] = useState<string | null>(null);
+    const [previewProgress, setPreviewProgress] = useState(0);
+
     // --- Derived State ---
     const activeToy = toys.find(t => t.id === activeToyId) || toys[0];
     const buttons = activeToy.buttons;
@@ -46,6 +50,7 @@ const App: React.FC = () => {
     const lastUrlsRef = useRef<{ [key: string]: string | null }>({});
     const analyserRef = useRef<AnalyserNode | null>(null);
     const animationFrameRef = useRef<number | null>(null);
+    const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
     // --- Persistence ---
     useEffect(() => {
@@ -183,6 +188,44 @@ const App: React.FC = () => {
             // Already inactive or never started
             setRecordingId(null);
             setAudioLevel(0);
+        }
+    };
+
+    // --- Edit Mode Preview Logic ---
+    const toggleButtonPreview = (id: string, url: string) => {
+        if (previewPlayingId === id) {
+            if (previewAudioRef.current) {
+                previewAudioRef.current.pause();
+                previewAudioRef.current = null;
+            }
+            setPreviewPlayingId(null);
+            setPreviewProgress(0);
+        } else {
+            // Stop any existing preview
+            if (previewAudioRef.current) {
+                previewAudioRef.current.pause();
+            }
+
+            const audio = new Audio(url);
+            previewAudioRef.current = audio;
+            setPreviewPlayingId(id);
+            setPreviewProgress(0);
+
+            audio.ontimeupdate = () => {
+                const progress = (audio.currentTime / audio.duration) * 100;
+                setPreviewProgress(isNaN(progress) ? 0 : progress);
+            };
+
+            audio.onended = () => {
+                setPreviewPlayingId(null);
+                setPreviewProgress(0);
+                previewAudioRef.current = null;
+            };
+
+            audio.play().catch(e => {
+                console.error("Preview playback failed", e);
+                setPreviewPlayingId(null);
+            });
         }
     };
 
@@ -553,7 +596,18 @@ const App: React.FC = () => {
                                             ))}
                                             <div className="flex-1" />
                                             <div className="flex gap-1.5">
-                                                <button onClick={() => playSound(btn)} disabled={!btn.audioUrl} className={`p-2 rounded-lg ${btn.audioUrl ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-300'}`}><Play size={14} /></button>
+                                                <button
+                                                    onClick={() => btn.audioUrl && toggleButtonPreview(btn.id, btn.audioUrl)}
+                                                    disabled={!btn.audioUrl}
+                                                    className={`relative p-2 rounded-lg overflow-hidden transition-all ${btn.audioUrl ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-300'}`}
+                                                    style={previewPlayingId === btn.id ? {
+                                                        background: `linear-gradient(to right, #bbf7d0 ${previewProgress}%, #f0fdf4 ${previewProgress}%)`
+                                                    } : {}}
+                                                >
+                                                    <div className="relative z-10">
+                                                        {previewPlayingId === btn.id ? <StopCircle size={14} /> : <Play size={14} />}
+                                                    </div>
+                                                </button>
                                                 <button onClick={() => recordingId === btn.id ? stopRecording() : startRecording(btn.id)} className={`px-2 py-1 rounded-lg text-xs font-bold ${recordingId === btn.id ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-700'}`}>{recordingId === btn.id ? t('stop') : t('record')}</button>
                                                 <label className="px-2 py-1 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 cursor-pointer">{t('upload')}<input type="file" accept="audio/*" className="hidden" onChange={(e) => handleFileUpload(btn.id, e)} /></label>
                                             </div>
