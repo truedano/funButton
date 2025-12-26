@@ -1,64 +1,67 @@
-# Fidget Keypad (Virtual Toy)
+# 🎮 Fun Button (v0.1.0)
 
-這是一個有趣的虛擬按鍵玩具網頁應用程式，讓您可以自訂按鈕、錄製聲音並進行播放。就像一個可自定義的 Soundboard，隨時隨地享受按壓按鈕的樂趣！
+一個充滿樂趣與療癒感的虛擬機械按鍵玩具，支援自定義音效、多玩具管理以及精緻的 3D 視覺效果。
 
-## ✨ 主要功能
+👉 **[立即體驗 Demo](https://truedano.github.io/funButton/)**
 
-### 🎮 遊玩模式 (Play Mode)
-- **擬真介面**：可愛且具質感的實體按鍵風格設計。
-- **即時回饋**：點擊按鈕即可播放對應的音效。
-- **動態佈局**：根據按鈕數量自動調整排列方式（支援 2 欄或 3 欄佈局）。
+---
 
-### ⚙️ 編輯模式 (Edit Mode)
-點擊右上角的設定圖示即可進入編輯模式，完全自訂您的鍵盤：
+## ✨ 核心特色
 
-- **按鈕管理**：自由新增或刪除按鈕。
-- **外觀自訂**：
-  - 修改按鈕上的文字。
-  - 選擇按鈕顏色（白色、黃色、藍色、紅色）。
-- **音效設定**：
-  - 🎙️ **錄音**：直接使用麥克風錄製專屬音效。
-  - 📤 **上傳**：支援上傳本地音訊檔案。
-  - ▶️ **預覽**：即時試聽設定的聲音。
-### 💾 資料持久化 (Data Persistence)
-- **自動儲存**：所有的按鈕設定、顏色以及**錄製的聲音**都會自動儲存在瀏覽器中。
-- **IndexedDB**：使用瀏覽器資料庫技術，確保即使重新整理頁面，您的專屬設定也不會消失。
+- **🎹 擬真機械手感**：具備 3D 深度感、陰影變化與縮放回饋的鍵帽設計。
+- **🔊 自定義音效**：
+  - **錄音**：直接透過麥克風錄製您的專屬聲音。
+  - **上傳**：支援上傳任何音訊檔案。
+  - **合成音效**：內建模擬機械開關的物理 Click 聲。
+- **🗃️ 多玩具管理**：可以建立多組獨立的「玩具」，每組都有自己的按鈕配置與外殼配色。
+- **🎨 高度自定義**：
+  - 支援 7 種鮮豔配色（白、黃、藍、紅、綠、紫、橘）。
+  - 可自定義外殼與按鍵顏色。
+- **🚀 極致效能**：
+  - 使用 Web Audio API & AudioBuffer 達成零延遲播放。
+  - 支援音效重疊播放。
+- **💾 自動存檔**：所有配置均儲存在本地 `IndexedDB`，重新整理也不會遺失。
 
-## 🛠️ 技術堆疊
+---
 
-本專案使用現代前端技術構建：
+## 🛠️ 技術棧
 
-- **核心框架**: [React](https://react.dev/) (v19)
-- **語言**: [TypeScript](https://www.typescriptlang.org/)
-- **建置工具**: [Vite](https://vitejs.dev/)
-- **樣式**: [Tailwind CSS](https://tailwindcss.com/) (v4, Local Installation)
-- **資料庫**: [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) (via `idb-keyval`)
-- **圖示**: [Lucide React](https://lucide.dev/)
+- **Core**: React 19 + TypeScript
+- **Styling**: TailwindCSS 4 (Modern CSS-first approach)
+- **Audio**: Web Audio API (Low latency buffer system)
+- **Storage**: idb-keyval (IndexedDB wrapper)
+- **Build**: Vite 6
+- **Deployment**: GitHub Actions
 
-## 🚀 如何開始
+---
 
-### 安裝依賴
+## 🏃 快速啟動
 
-```bash
-npm install
-```
+### 本地開發
 
-### 啟動開發伺服器
+1. 安裝套件：
+   ```bash
+   npm install
+   ```
 
-```bash
-npm run dev
-```
+2. 啟動開發伺服器：
+   ```bash
+   npm run dev
+   ```
 
-### 建置生產版本
+3. 建立生產版本：
+   ```bash
+   npm run build
+   ```
 
-```bash
-npm run build
-```
+---
 
-## 📦 部署建議
+## 🛡️ 安全性說明
 
-本專案為純靜態網站 (Static Web App)，非常適合部署於以下免費平台：
+本專案為純前端應用，所有個人錄音與配置均儲存於您的瀏覽器本地空間，不會上傳至任何雲端伺服器。API Key 等敏感資訊已進行安全過濾與隔離。
 
-- **Vercel** (推薦)
-- **Netlify**
-- **GitHub Pages**
+---
+
+## 📄 授權
+
+MIT License
