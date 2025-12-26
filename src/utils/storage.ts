@@ -95,35 +95,38 @@ const base64ToBlob = (base64: string): Blob => {
     return new Blob([uInt8Array], { type: contentType });
 };
 
+const processToyForExport = async (toy: ToyConfig) => {
+    const buttons = await Promise.all(
+        toy.buttons.map(async (btn) => {
+            let audioBase64: string | null = null;
+            if (btn.audioUrl) {
+                try {
+                    const response = await fetch(btn.audioUrl);
+                    const blob = await response.blob();
+                    audioBase64 = await blobToBase64(blob);
+                } catch (e) {
+                    console.error(`Export: Failed to convert audio for ${btn.id}`, e);
+                }
+            }
+            return {
+                id: btn.id,
+                text: btn.text,
+                color: btn.color,
+                audioBase64,
+            };
+        })
+    );
+    return { ...toy, buttons };
+};
+
 export const exportAllData = async (state: GlobalState): Promise<string> => {
     const backupToys = await Promise.all(
-        state.toys.map(async (toy) => {
-            const buttons = await Promise.all(
-                toy.buttons.map(async (btn) => {
-                    let audioBase64: string | null = null;
-                    if (btn.audioUrl) {
-                        try {
-                            const response = await fetch(btn.audioUrl);
-                            const blob = await response.blob();
-                            audioBase64 = await blobToBase64(blob);
-                        } catch (e) {
-                            console.error(`Export: Failed to convert audio for ${btn.id}`, e);
-                        }
-                    }
-                    return {
-                        id: btn.id,
-                        text: btn.text,
-                        color: btn.color,
-                        audioBase64,
-                    };
-                })
-            );
-            return { ...toy, buttons };
-        })
+        state.toys.map(toy => processToyForExport(toy))
     );
 
     const backupData = {
         version: '1.0',
+        type: 'full_backup',
         timestamp: new Date().toISOString(),
         activeToyId: state.activeToyId,
         toys: backupToys,
@@ -132,28 +135,47 @@ export const exportAllData = async (state: GlobalState): Promise<string> => {
     return JSON.stringify(backupData, null, 2);
 };
 
-export const importAllData = async (jsonContent: string): Promise<GlobalState> => {
+export const exportSingleToy = async (toy: ToyConfig): Promise<string> => {
+    const processedToy = await processToyForExport(toy);
+
+    const backupData = {
+        version: '1.0',
+        type: 'single_toy',
+        timestamp: new Date().toISOString(),
+        toy: processedToy,
+    };
+
+    return JSON.stringify(backupData, null, 2);
+};
+
+export const importData = async (jsonContent: string, currentToys: ToyConfig[]): Promise<GlobalState> => {
     const data = JSON.parse(jsonContent);
 
-    // Basic validation
-    if (!data.toys || !Array.isArray(data.toys)) {
-        throw new Error('Invalid backup file format');
-    }
-
-    const restoredToys: ToyConfig[] = data.toys.map((toy: any) => ({
-        id: toy.id || `toy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const restoreToy = (toy: any): ToyConfig => ({
+        id: `toy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Always give new ID on import to avoid conflicts
         name: toy.name || 'Restored Toy',
         settings: toy.settings || { caseColor: 'yellow' },
         buttons: (toy.buttons || []).map((btn: any) => ({
-            id: btn.id || `btn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: `btn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             text: btn.text || '',
             color: btn.color || 'white',
             audioUrl: btn.audioBase64 ? URL.createObjectURL(base64ToBlob(btn.audioBase64)) : null,
         })),
-    }));
+    });
 
-    return {
-        toys: restoredToys,
-        activeToyId: data.activeToyId || restoredToys[0]?.id || 'toy_default',
-    };
+    if (data.type === 'single_toy' && data.toy) {
+        const newToy = restoreToy(data.toy);
+        return {
+            toys: [...currentToys, newToy],
+            activeToyId: newToy.id
+        };
+    } else if (data.toys && Array.isArray(data.toys)) {
+        const restoredToys = data.toys.map((t: any) => restoreToy(t));
+        return {
+            toys: restoredToys,
+            activeToyId: data.activeToyId || restoredToys[0]?.id || 'toy_default',
+        };
+    } else {
+        throw new Error('Invalid backup file format');
+    }
 };

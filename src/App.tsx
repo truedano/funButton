@@ -3,7 +3,7 @@ import { KEYPAD_CONFIG, APP_TITLE, APP_SUBTITLE } from './constants';
 import KeyButton from './components/KeyButton';
 import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database } from 'lucide-react';
 import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState } from './types';
-import { saveGlobalState, loadGlobalState, exportAllData, importAllData } from './utils/storage';
+import { saveGlobalState, loadGlobalState, exportAllData, exportSingleToy, importData } from './utils/storage';
 import { playBuffer, decodeAudio } from './utils/audio';
 import pkg from '../package.json';
 
@@ -197,6 +197,22 @@ const App: React.FC = () => {
         }
     };
 
+    const handleExportToy = async (toy: ToyConfig) => {
+        try {
+            const json = await exportSingleToy(toy);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `toy-${toy.name.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error("Single export failed", e);
+            alert("匯出玩具失敗");
+        }
+    };
+
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -206,7 +222,7 @@ const App: React.FC = () => {
             reader.onload = async (event) => {
                 try {
                     const content = event.target?.result as string;
-                    const newState = await importAllData(content);
+                    const newState = await importData(content, toys);
                     setToys(newState.toys);
                     setActiveToyId(newState.activeToyId);
                     alert("匯入成功！");
@@ -305,6 +321,13 @@ const App: React.FC = () => {
                                         </div>
                                         <div className="flex gap-2">
                                             <button
+                                                onClick={() => handleExportToy(toy)}
+                                                className="p-1.5 text-gray-300 hover:text-blue-500"
+                                                title="Export Toy"
+                                            >
+                                                <Download size={18} />
+                                            </button>
+                                            <button
                                                 onClick={() => setActiveToyId(toy.id)}
                                                 className={`p-1.5 rounded-lg transition-colors ${activeToyId === toy.id ? 'text-blue-500' : 'text-gray-300 hover:text-blue-400'}`}
                                                 title="Select Toy"
@@ -341,10 +364,10 @@ const App: React.FC = () => {
                                     onClick={handleExport}
                                     className="flex items-center justify-center gap-2 py-3 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
                                 >
-                                    <Download size={16} className="text-blue-500" /> Export All
+                                    <Download size={16} className="text-blue-500" /> Export
                                 </button>
                                 <label className="flex items-center justify-center gap-2 py-3 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm cursor-pointer">
-                                    <Upload size={16} className="text-green-500" /> Import All
+                                    <Upload size={16} className="text-green-500" /> Import
                                     <input
                                         type="file"
                                         accept=".json"
