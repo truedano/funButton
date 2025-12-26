@@ -1,10 +1,14 @@
-export type KeyColor = 'white' | 'yellow' | 'blue' | 'red';
+export type KeyColor = 'white' | 'yellow' | 'blue' | 'red' | 'green' | 'purple' | 'orange';
+
+export interface AppSettings {
+  caseColor: KeyColor;
+}
 
 export interface KeyConfig {
   id: string;
-  text: string; // The raw text to display
+  text: string;
   color: KeyColor;
-  audioUrl?: string | null; // Blob URL or Data URL for the sound
+  audioUrl?: string | null;
 }
 
 export interface LogEntry {

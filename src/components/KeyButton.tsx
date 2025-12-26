@@ -13,11 +13,17 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled }) => {
   const getColorStyles = (color: string) => {
     switch (color) {
       case 'yellow':
-        return "bg-[#F3E388] border-[#DNC666] text-black";
+        return "bg-[#F3E388] border-[#D1C266] text-black";
       case 'blue':
         return "bg-[#A7C7E7] border-[#86A6C6] text-black";
       case 'red':
         return "bg-[#FFB7B2] border-[#DF9792] text-black";
+      case 'green':
+        return "bg-[#B4E4B4] border-[#94C494] text-black";
+      case 'purple':
+        return "bg-[#D1C4E9] border-[#B1A4C9] text-black";
+      case 'orange':
+        return "bg-[#FFCCBC] border-[#DFAC9C] text-black";
       case 'white':
       default:
         return "bg-[#F0F4F8] border-[#CED4DA] text-black";

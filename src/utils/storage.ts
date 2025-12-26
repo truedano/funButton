@@ -1,13 +1,18 @@
 import { get, set } from 'idb-keyval';
-import { KeyConfig } from '../types';
+import { KeyConfig, AppSettings } from '../types';
 
-const DB_KEY = 'funbutton_config';
+const DB_KEY = 'funbutton_config_v2'; // Increment key for new structure
 
 interface StoredKeyConfig extends Omit<KeyConfig, 'audioUrl'> {
     audioBlob?: Blob | null;
 }
 
-export const saveButtons = async (buttons: KeyConfig[]) => {
+interface AppData {
+    buttons: StoredKeyConfig[];
+    settings: AppSettings;
+}
+
+export const saveAppData = async (buttons: KeyConfig[], settings: AppSettings) => {
     const storedButtons: StoredKeyConfig[] = await Promise.all(
         buttons.map(async (btn) => {
             let audioBlob: Blob | null = null;
@@ -27,17 +32,22 @@ export const saveButtons = async (buttons: KeyConfig[]) => {
             };
         })
     );
-    await set(DB_KEY, storedButtons);
+    await set(DB_KEY, { buttons: storedButtons, settings });
 };
 
-export const loadButtons = async (): Promise<KeyConfig[] | null> => {
-    const storedButtons = await get<StoredKeyConfig[]>(DB_KEY);
-    if (!storedButtons) return null;
+export const loadAppData = async (): Promise<{ buttons: KeyConfig[], settings: AppSettings } | null> => {
+    const data = await get<AppData>(DB_KEY);
+    if (!data) return null;
 
-    return storedButtons.map((btn) => ({
+    const buttons: KeyConfig[] = data.buttons.map((btn) => ({
         id: btn.id,
         text: btn.text,
         color: btn.color,
         audioUrl: btn.audioBlob ? URL.createObjectURL(btn.audioBlob) : null,
     }));
+
+    return {
+        buttons,
+        settings: data.settings || { caseColor: 'yellow' }
+    };
 };

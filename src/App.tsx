@@ -2,14 +2,15 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { KEYPAD_CONFIG, APP_TITLE, APP_SUBTITLE } from './constants';
 import KeyButton from './components/KeyButton';
 import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle } from 'lucide-react';
-import { KeyConfig, KeyColor } from './types';
-import { saveButtons, loadButtons } from './utils/storage';
+import { KeyConfig, KeyColor, AppSettings } from './types';
+import { saveAppData, loadAppData } from './utils/storage';
 import { playBuffer, decodeAudio } from './utils/audio';
 import pkg from '../package.json';
 
 const App: React.FC = () => {
     // --- State ---
     const [buttons, setButtons] = useState<KeyConfig[]>(KEYPAD_CONFIG);
+    const [settings, setSettings] = useState<AppSettings>({ caseColor: 'yellow' });
     const [isEditing, setIsEditing] = useState(false);
     const [recordingId, setRecordingId] = useState<string | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
@@ -22,9 +23,10 @@ const App: React.FC = () => {
 
     // --- Persistence ---
     useEffect(() => {
-        loadButtons().then((stored) => {
-            if (stored) {
-                setButtons(stored);
+        loadAppData().then((data) => {
+            if (data) {
+                setButtons(data.buttons);
+                setSettings(data.settings);
             }
             setIsLoaded(true);
         });
@@ -32,9 +34,9 @@ const App: React.FC = () => {
 
     useEffect(() => {
         if (isLoaded) {
-            saveButtons(buttons);
+            saveAppData(buttons, settings);
         }
-    }, [buttons, isLoaded]);
+    }, [buttons, settings, isLoaded]);
 
     // --- Audio Logic: Caching ---
     useEffect(() => {
@@ -157,9 +159,25 @@ const App: React.FC = () => {
     };
 
     // --- Layout Helpers ---
-    // Determine grid columns based on button count
     const gridCols = buttons.length <= 4 ? 'grid-cols-2' : 'grid-cols-3';
     const containerWidth = buttons.length <= 4 ? 'max-w-[320px]' : 'max-w-[480px]';
+
+    const ALL_COLORS: KeyColor[] = ['white', 'yellow', 'blue', 'red', 'green', 'purple', 'orange'];
+
+    const getCaseStyles = (color: KeyColor) => {
+        switch (color) {
+            case 'yellow': return { outer: 'bg-[#FFD66B] border-[#E5BC45]', inner: 'bg-[#E5BC45]', text: 'text-yellow-900/50' };
+            case 'blue': return { outer: 'bg-[#A7C7E7] border-[#86A6C6]', inner: 'bg-[#86A6C6]', text: 'text-blue-900/50' };
+            case 'red': return { outer: 'bg-[#FFB7B2] border-[#DF9792]', inner: 'bg-[#DF9792]', text: 'text-red-900/50' };
+            case 'green': return { outer: 'bg-[#B4E4B4] border-[#94C494]', inner: 'bg-[#94C494]', text: 'text-green-900/50' };
+            case 'purple': return { outer: 'bg-[#D1C4E9] border-[#B1A4C9]', inner: 'bg-[#B1A4C9]', text: 'text-purple-900/50' };
+            case 'orange': return { outer: 'bg-[#FFCCBC] border-[#DFAC9C]', inner: 'bg-[#DFAC9C]', text: 'text-orange-900/50' };
+            case 'white':
+            default: return { outer: 'bg-[#F0F4F8] border-[#CED4DA]', inner: 'bg-[#CED4DA]', text: 'text-gray-900/50' };
+        }
+    };
+
+    const caseStyles = getCaseStyles(settings.caseColor);
 
     return (
         <div className="min-h-screen bg-[#e0e5ec] text-gray-800 flex flex-col items-center py-8 px-4 sm:px-6 relative overflow-y-auto">
@@ -194,6 +212,33 @@ const App: React.FC = () => {
                 {isEditing ? (
                     // --- EDIT MODE UI ---
                     <div className="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        {/* Global Settings */}
+                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
+                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Global Settings</h2>
+                            <div>
+                                <label className="text-xs text-gray-400 font-semibold mb-2 block">Casing Color</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {ALL_COLORS.map((c) => (
+                                        <button
+                                            key={c}
+                                            onClick={() => setSettings({ ...settings, caseColor: c })}
+                                            className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-95 ${settings.caseColor === c ? 'border-gray-800 scale-110' : 'border-transparent'
+                                                }`}
+                                            style={{
+                                                backgroundColor:
+                                                    c === 'white' ? '#F0F4F8' :
+                                                        c === 'yellow' ? '#F3E388' :
+                                                            c === 'blue' ? '#A7C7E7' :
+                                                                c === 'red' ? '#FFB7B2' :
+                                                                    c === 'green' ? '#B4E4B4' :
+                                                                        c === 'purple' ? '#D1C4E9' : '#FFCCBC'
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
                             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Button Configuration</h2>
 
@@ -222,8 +267,8 @@ const App: React.FC = () => {
                                         {/* Middle Row: Color Picker */}
                                         <div>
                                             <label className="text-xs text-gray-400 font-semibold mb-2 block">Color</label>
-                                            <div className="flex gap-2">
-                                                {(['white', 'yellow', 'blue', 'red'] as KeyColor[]).map((c) => (
+                                            <div className="flex flex-wrap gap-2">
+                                                {ALL_COLORS.map((c) => (
                                                     <button
                                                         key={c}
                                                         onClick={() => updateButton(btn.id, { color: c })}
@@ -233,7 +278,10 @@ const App: React.FC = () => {
                                                             backgroundColor:
                                                                 c === 'white' ? '#F0F4F8' :
                                                                     c === 'yellow' ? '#F3E388' :
-                                                                        c === 'blue' ? '#A7C7E7' : '#FFB7B2'
+                                                                        c === 'blue' ? '#A7C7E7' :
+                                                                            c === 'red' ? '#FFB7B2' :
+                                                                                c === 'green' ? '#B4E4B4' :
+                                                                                    c === 'purple' ? '#D1C4E9' : '#FFCCBC'
                                                         }}
                                                     />
                                                 ))}
@@ -318,9 +366,9 @@ const App: React.FC = () => {
                         )}
 
                         {/* Casing Body */}
-                        <div className="bg-[#FFD66B] p-5 pb-7 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)] border-b-[8px] border-[#E5BC45] transition-all duration-300">
+                        <div className={`${caseStyles.outer} p-5 pb-7 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)] border-b-[8px] transition-all duration-300`}>
                             {/* Inner Grid */}
-                            <div className={`grid ${gridCols} gap-4 bg-[#E5BC45] p-2 rounded-2xl transition-all duration-300`}>
+                            <div className={`grid ${gridCols} gap-4 ${caseStyles.inner} p-2 rounded-2xl transition-all duration-300`}>
                                 {buttons.map((config) => (
                                     <KeyButton
                                         key={config.id}
@@ -329,7 +377,7 @@ const App: React.FC = () => {
                                     />
                                 ))}
                                 {buttons.length === 0 && (
-                                    <div className="col-span-2 text-center p-8 text-yellow-800 opacity-50 font-bold">
+                                    <div className={`col-span-2 text-center p-8 ${caseStyles.text} font-bold`}>
                                         No buttons! <br /> Click settings to add some.
                                     </div>
                                 )}

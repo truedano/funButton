@@ -5,14 +5,22 @@ export const getAudioContext = () => {
     if (!audioContext) {
         audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
-    }
     return audioContext;
 };
 
-export const playClickSound = () => {
+/**
+ * Ensures the AudioContext is running. Must be called after a user gesture.
+ */
+export const ensureAudioContextStarted = async () => {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+        await ctx.resume();
+    }
+};
+
+export const playClickSound = async () => {
     try {
+        await ensureAudioContextStarted();
         const ctx = getAudioContext();
         const t = ctx.currentTime;
 
@@ -61,7 +69,8 @@ export const playClickSound = () => {
 /**
  * Plays an AudioBuffer with low latency and overlapping support.
  */
-export const playBuffer = (buffer: AudioBuffer, volume: number = 1) => {
+export const playBuffer = async (buffer: AudioBuffer, volume: number = 1) => {
+    await ensureAudioContextStarted();
     const ctx = getAudioContext();
     const source = ctx.createBufferSource();
     const gainNode = ctx.createGain();
