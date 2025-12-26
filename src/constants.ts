@@ -23,5 +23,5 @@ export const KEYPAD_CONFIG: KeyConfig[] = [
   },
 ];
 
-export const APP_TITLE = "Fidget Keypad";
+export const APP_TITLE = "Fun Button";
 export const APP_SUBTITLE = "Virtual Toy";

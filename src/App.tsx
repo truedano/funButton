@@ -5,6 +5,7 @@ import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle } 
 import { KeyConfig, KeyColor } from './types';
 import { saveButtons, loadButtons } from './utils/storage';
 import { playBuffer, decodeAudio } from './utils/audio';
+import pkg from '../package.json';
 
 const App: React.FC = () => {
     // --- State ---
@@ -168,7 +169,7 @@ const App: React.FC = () => {
             <div className="fixed bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-yellow-200/30 rounded-full blur-3xl pointer-events-none" />
 
             {/* Header & Controls */}
-            <header className="mb-8 text-center relative z-10 mt-4 w-full max-w-2xl flex flex-col items-center">
+            <header className="mb-16 text-center relative z-10 mt-4 w-full max-w-2xl flex flex-col items-center">
                 <div className="flex items-center justify-between w-full mb-4 px-4">
                     <div className="w-10"></div> {/* Spacer for centering */}
                     <div className="flex flex-col items-center">
@@ -341,6 +342,10 @@ const App: React.FC = () => {
                         </div>
                     </div>
                 )}
+
+                <footer className="mt-12 text-gray-400 text-[10px] font-medium tracking-widest uppercase">
+                    v{pkg.version}
+                </footer>
 
             </main>
         </div>
