@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { KEYPAD_CONFIG, APP_TITLE, APP_SUBTITLE } from './constants';
 import KeyButton from './components/KeyButton';
-import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database } from 'lucide-react';
+import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database, CheckCircle, AlertCircle } from 'lucide-react';
 import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState } from './types';
 import { saveGlobalState, loadGlobalState, exportAllData, exportSingleToy, importData } from './utils/storage';
 import { playBuffer, decodeAudio } from './utils/audio';
@@ -16,6 +16,7 @@ const App: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [recordingId, setRecordingId] = useState<string | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
     // --- Derived State ---
     const activeToy = toys.find(t => t.id === activeToyId) || toys[0];
@@ -108,7 +109,7 @@ const App: React.FC = () => {
             setRecordingId(id);
         } catch (err) {
             console.error("Error accessing microphone:", err);
-            alert("Could not access microphone.");
+            showToast("無法存取麥克風", "error");
         }
     };
 
@@ -137,6 +138,11 @@ const App: React.FC = () => {
         };
         setToys([...toys, newToy]);
         setActiveToyId(newId);
+    };
+
+    const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
     };
 
     const removeToy = (id: string) => {
@@ -193,7 +199,7 @@ const App: React.FC = () => {
             URL.revokeObjectURL(url);
         } catch (e) {
             console.error("Export failed", e);
-            alert("匯出失敗");
+            showToast("匯出失敗", "error");
         }
     };
 
@@ -209,7 +215,7 @@ const App: React.FC = () => {
             URL.revokeObjectURL(url);
         } catch (e) {
             console.error("Single export failed", e);
-            alert("匯出玩具失敗");
+            showToast("匯出玩具失敗", "error");
         }
     };
 
@@ -225,16 +231,16 @@ const App: React.FC = () => {
                     const newState = await importData(content, toys);
                     setToys(newState.toys);
                     setActiveToyId(newState.activeToyId);
-                    alert("匯入成功！");
+                    showToast("匯入成功！", "success");
                 } catch (err) {
                     console.error("Import parsing failed", err);
-                    alert("匯入失敗，請檢查檔案格式");
+                    showToast("匯入失敗，請檢查檔案格式", "error");
                 }
             };
             reader.readAsText(file);
         } catch (e) {
             console.error("Import failed", e);
-            alert("匯入讀取失敗");
+            showToast("匯入讀取失敗", "error");
         }
         // Reset input
         e.target.value = '';
@@ -264,6 +270,19 @@ const App: React.FC = () => {
             {/* Background blobs */}
             <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-200/30 rounded-full blur-3xl pointer-events-none" />
             <div className="fixed bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-yellow-200/30 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Toast Notification */}
+            {toast && (
+                <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className={`px-4 py-3 rounded-2xl shadow-lg backdrop-blur-md flex items-center gap-3 border ${toast.type === 'success'
+                            ? 'bg-white/80 border-green-100 text-green-800'
+                            : 'bg-white/80 border-red-100 text-red-800'
+                        }`}>
+                        {toast.type === 'success' ? <CheckCircle size={18} className="text-green-500" /> : <AlertCircle size={18} className="text-red-500" />}
+                        <span className="text-sm font-bold tracking-tight">{toast.message}</span>
+                    </div>
+                </div>
+            )}
 
             {/* Header */}
             <header className="mb-8 text-center relative z-10 mt-4 w-full max-w-2xl flex flex-col items-center">
