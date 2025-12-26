@@ -5,7 +5,7 @@ import KeyButton from './components/KeyButton';
 import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database, CheckCircle, AlertCircle, Globe } from 'lucide-react';
 import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState } from './types';
 import { saveGlobalState, loadGlobalState, exportAllData, exportSingleToy, importData } from './utils/storage';
-import { playBuffer, decodeAudio } from './utils/audio';
+import { playBuffer, decodeAudio, trimAndNormalize, audioBufferToWav, getAudioContext, ensureAudioContextStarted } from './utils/audio';
 import pkg from '../package.json';
 
 const App: React.FC = () => {
@@ -29,6 +29,11 @@ const App: React.FC = () => {
     const [isLoaded, setIsLoaded] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+    // --- New State for Recording Enhancements ---
+    const [audioLevel, setAudioLevel] = useState(0);
+    const [pendingRecording, setPendingRecording] = useState<{ id: string; blob: Blob; url: string } | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+
     // --- Derived State ---
     const activeToy = toys.find(t => t.id === activeToyId) || toys[0];
     const buttons = activeToy.buttons;
@@ -39,6 +44,8 @@ const App: React.FC = () => {
     const audioChunksRef = useRef<Blob[]>([]);
     const audioBuffersRef = useRef<{ [key: string]: AudioBuffer }>({});
     const lastUrlsRef = useRef<{ [key: string]: string | null }>({});
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const animationFrameRef = useRef<number | null>(null);
 
     // --- Persistence ---
     useEffect(() => {
@@ -98,10 +105,34 @@ const App: React.FC = () => {
     // --- Audio Logic: Recording ---
     const startRecording = async (id: string) => {
         try {
+            await ensureAudioContextStarted();
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const mediaRecorder = new MediaRecorder(stream);
             mediaRecorderRef.current = mediaRecorder;
             audioChunksRef.current = [];
+
+            // Setup Analyser for Visualization
+            const ctx = getAudioContext();
+            const source = ctx.createMediaStreamSource(stream);
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+            analyserRef.current = analyser;
+
+            const updateLevel = () => {
+                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                if (analyserRef.current) {
+                    analyser.getByteFrequencyData(dataArray);
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        sum += dataArray[i];
+                    }
+                    const average = sum / dataArray.length;
+                    setAudioLevel(Math.min(1, average / 128));
+                    animationFrameRef.current = requestAnimationFrame(updateLevel);
+                }
+            };
+            updateLevel();
 
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
@@ -110,10 +141,22 @@ const App: React.FC = () => {
             };
 
             mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                updateButton(id, { audioUrl });
-                stream.getTracks().forEach(track => track.stop());
+                if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+                analyserRef.current = null;
+
+                // Final safety: clear recording ID here too
+                setRecordingId(null);
+                setAudioLevel(0);
+
+                if (audioChunksRef.current.length > 0) {
+                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    setPendingRecording({ id, blob: audioBlob, url: audioUrl });
+                }
+
+                stream.getTracks().forEach(track => {
+                    try { track.stop(); } catch (e) { }
+                });
             };
 
             mediaRecorder.start();
@@ -121,14 +164,49 @@ const App: React.FC = () => {
         } catch (err) {
             console.error("Error accessing microphone:", err);
             showToast(t('mic_error'), "error");
+            setRecordingId(null);
         }
     };
 
     const stopRecording = () => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            mediaRecorderRef.current.stop();
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            try {
+                mediaRecorderRef.current.stop();
+            } catch (e) {
+                console.error("Failed to stop media recorder", e);
+                // Force state cleanup even if stop() fails
+                if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+                setRecordingId(null);
+                setAudioLevel(0);
+            }
+        } else {
+            // Already inactive or never started
+            setRecordingId(null);
+            setAudioLevel(0);
         }
-        setRecordingId(null);
+    };
+
+    const savePendingRecording = async () => {
+        if (!pendingRecording) return;
+        setIsProcessing(true);
+        try {
+            const arrayBuffer = await pendingRecording.blob.arrayBuffer();
+            const originalBuffer = await decodeAudio(arrayBuffer);
+
+            // Process: Trim and Normalize
+            const processedBuffer = trimAndNormalize(originalBuffer);
+            const processedBlob = audioBufferToWav(processedBuffer);
+            const processedUrl = URL.createObjectURL(processedBlob);
+
+            updateButton(pendingRecording.id, { audioUrl: processedUrl });
+            setPendingRecording(null);
+            showToast(t('save_success'), "success");
+        } catch (e) {
+            console.error("Failed to process recording", e);
+            showToast(t('process_error'), "error");
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     const handleFileUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -516,6 +594,76 @@ const App: React.FC = () => {
                     v{pkg.version}
                 </footer>
             </main>
+
+            {/* Recording Visualizer Overlay (Only shown when recording) */}
+            {recordingId && (
+                <div
+                    className="fixed inset-0 z-[110] flex items-center justify-center bg-black/5 backdrop-blur-[2px] cursor-pointer"
+                    onClick={() => stopRecording()}
+                >
+                    <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[3rem] shadow-2xl border border-white flex flex-col items-center gap-6 animate-in zoom-in-95 duration-200 pointer-events-auto">
+                        <div className="relative flex items-center justify-center h-24 w-48">
+                            {[...Array(12)].map((_, i) => (
+                                <div
+                                    key={i}
+                                    className="w-2 mx-0.5 rounded-full bg-red-500 transition-all duration-75"
+                                    style={{
+                                        height: `${Math.max(10, audioLevel * 100 * (0.5 + Math.random() * 0.5))}px`,
+                                        opacity: 0.3 + audioLevel * 0.7
+                                    }}
+                                />
+                            ))}
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse mb-2" />
+                            <span className="text-lg font-black text-gray-900 tracking-tight uppercase">{t('recording')}</span>
+                            <p className="text-[10px] text-gray-400 font-bold mt-2 uppercase tracking-widest">{t('tap_to_stop')}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Pending Recording Preview Modal */}
+            {pendingRecording && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 w-full max-w-sm border border-white flex flex-col items-center animate-in zoom-in-95 duration-300">
+                        <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
+                            <Mic className="w-10 h-10 text-blue-500" />
+                        </div>
+                        <h3 className="text-xl font-black text-gray-900 mb-2">{t('recording_preview')}</h3>
+                        <p className="text-gray-500 text-sm mb-8 text-center">{t('preview_hint')}</p>
+
+                        <div className="flex flex-col w-full gap-3">
+                            <button
+                                onClick={() => {
+                                    const audio = new Audio(pendingRecording.url);
+                                    audio.play();
+                                }}
+                                className="w-full py-4 bg-blue-50 text-blue-600 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors"
+                            >
+                                <Play size={20} /> {t('listen')}
+                            </button>
+
+                            <div className="grid grid-cols-2 gap-3 w-full">
+                                <button
+                                    onClick={() => setPendingRecording(null)}
+                                    className="py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-colors"
+                                >
+                                    {t('discard')}
+                                </button>
+                                <button
+                                    onClick={savePendingRecording}
+                                    disabled={isProcessing}
+                                    className="py-4 bg-gray-800 text-white rounded-2xl font-bold hover:bg-gray-900 transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+                                >
+                                    {isProcessing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={20} />}
+                                    {isProcessing ? t('processing') : t('save_recording')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
