@@ -29,6 +29,7 @@
     "upload": "上傳",
     "toy_count": "{{count}} 個按鈕",
     "new_button_text": "新按鈕",
+    "new_button_placeholder": "輸入按鈕文字...",
     "language": "語言",
     "save_success": "儲存成功",
     "process_error": "音訊處理失敗",

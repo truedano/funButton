@@ -29,6 +29,7 @@
     "upload": "Up",
     "toy_count": "{{count}} Buttons",
     "new_button_text": "New\nButton",
+    "new_button_placeholder": "Enter button text...",
     "language": "Language",
     "save_success": "Saved successfully",
     "process_error": "Processing failed",

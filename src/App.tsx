@@ -304,7 +304,7 @@ const App: React.FC = () => {
         const newId = `btn_${Date.now()}`;
         const newButton: KeyConfig = {
             id: newId,
-            text: t('new_button_text'),
+            text: '',
             color: 'white',
             audioUrl: null
         };
@@ -572,6 +572,7 @@ const App: React.FC = () => {
                                                 <textarea
                                                     value={btn.text}
                                                     onChange={(e) => updateButton(btn.id, { text: e.target.value })}
+                                                    placeholder={t('new_button_placeholder')}
                                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium resize-none focus:outline-none h-[60px]"
                                                 />
                                             </div>
