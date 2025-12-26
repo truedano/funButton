@@ -1,16 +1,27 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { KEYPAD_CONFIG, APP_TITLE, APP_SUBTITLE } from './constants';
 import KeyButton from './components/KeyButton';
-import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database, CheckCircle, AlertCircle } from 'lucide-react';
+import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database, CheckCircle, AlertCircle, Globe } from 'lucide-react';
 import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState } from './types';
 import { saveGlobalState, loadGlobalState, exportAllData, exportSingleToy, importData } from './utils/storage';
 import { playBuffer, decodeAudio } from './utils/audio';
 import pkg from '../package.json';
 
 const App: React.FC = () => {
+    const { t, i18n } = useTranslation();
+
     // --- State ---
     const [toys, setToys] = useState<ToyConfig[]>([
-        { id: 'toy_default', name: 'Default Toy', settings: { caseColor: 'yellow' }, buttons: KEYPAD_CONFIG }
+        {
+            id: 'toy_default',
+            name: t('default_toy_name'),
+            settings: { caseColor: 'yellow' },
+            buttons: KEYPAD_CONFIG.map(btn => ({
+                ...btn,
+                text: t(btn.id as any) || btn.text
+            }))
+        }
     ]);
     const [activeToyId, setActiveToyId] = useState<string>('toy_default');
     const [isEditing, setIsEditing] = useState(false);
@@ -109,7 +120,7 @@ const App: React.FC = () => {
             setRecordingId(id);
         } catch (err) {
             console.error("Error accessing microphone:", err);
-            showToast("無法存取麥克風", "error");
+            showToast(t('mic_error'), "error");
         }
     };
 
@@ -132,7 +143,7 @@ const App: React.FC = () => {
         const newId = `toy_${Date.now()}`;
         const newToy: ToyConfig = {
             id: newId,
-            name: `Toy ${toys.length + 1}`,
+            name: `${t('default_toy_name')} ${toys.length + 1}`,
             settings: { caseColor: 'yellow' },
             buttons: []
         };
@@ -172,7 +183,7 @@ const App: React.FC = () => {
         const newId = `btn_${Date.now()}`;
         const newButton: KeyConfig = {
             id: newId,
-            text: 'New\nButton',
+            text: t('new_button_text'),
             color: 'white',
             audioUrl: null
         };
@@ -199,7 +210,7 @@ const App: React.FC = () => {
             URL.revokeObjectURL(url);
         } catch (e) {
             console.error("Export failed", e);
-            showToast("匯出失敗", "error");
+            showToast(t('export_failed'), "error");
         }
     };
 
@@ -215,7 +226,7 @@ const App: React.FC = () => {
             URL.revokeObjectURL(url);
         } catch (e) {
             console.error("Single export failed", e);
-            showToast("匯出玩具失敗", "error");
+            showToast(t('export_toy_failed'), "error");
         }
     };
 
@@ -231,16 +242,16 @@ const App: React.FC = () => {
                     const newState = await importData(content, toys);
                     setToys(newState.toys);
                     setActiveToyId(newState.activeToyId);
-                    showToast("匯入成功！", "success");
+                    showToast(t('import_success'), "success");
                 } catch (err) {
                     console.error("Import parsing failed", err);
-                    showToast("匯入失敗，請檢查檔案格式", "error");
+                    showToast(t('import_failed_format'), "error");
                 }
             };
             reader.readAsText(file);
         } catch (e) {
             console.error("Import failed", e);
-            showToast("匯入讀取失敗", "error");
+            showToast(t('import_read_failed'), "error");
         }
         // Reset input
         e.target.value = '';
@@ -292,15 +303,24 @@ const App: React.FC = () => {
                         <div className="inline-flex items-center justify-center p-3 bg-white rounded-full shadow-md mb-2">
                             <Bot className="w-8 h-8 text-yellow-500" />
                         </div>
-                        <h1 className="text-2xl font-black tracking-tight text-gray-900 leading-none">{APP_TITLE}</h1>
-                        <p className="text-gray-500 font-medium text-sm">{APP_SUBTITLE}</p>
+                        <h1 className="text-2xl font-black tracking-tight text-gray-900 leading-none">{t('app_title')}</h1>
+                        <p className="text-gray-500 font-medium text-sm">{t('app_subtitle')}</p>
                     </div>
-                    <button
-                        onClick={() => setIsEditing(!isEditing)}
-                        className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${isEditing ? 'bg-blue-500 text-white shadow-inner' : 'bg-white text-gray-600 shadow-sm hover:bg-gray-50'}`}
-                    >
-                        {isEditing ? <Check size={20} /> : <Settings size={20} />}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'zh-TW' : 'en')}
+                            className="w-10 h-10 flex items-center justify-center rounded-full bg-white text-gray-600 shadow-sm hover:bg-gray-50 transition-colors"
+                            title={t('language')}
+                        >
+                            <Globe size={18} />
+                        </button>
+                        <button
+                            onClick={() => setIsEditing(!isEditing)}
+                            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${isEditing ? 'bg-blue-500 text-white shadow-inner' : 'bg-white text-gray-600 shadow-sm hover:bg-gray-50'}`}
+                        >
+                            {isEditing ? <Check size={20} /> : <Settings size={20} />}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Toy Selector Bar */}
@@ -325,7 +345,7 @@ const App: React.FC = () => {
                         {/* Manage Toys */}
                         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
                             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                                <LayoutGrid size={16} /> Manage Toys
+                                <LayoutGrid size={16} /> {t('manage_toys')}
                             </h2>
                             <div className="space-y-3">
                                 {toys.map(toy => (
@@ -341,13 +361,13 @@ const App: React.FC = () => {
                                                 onClick={(e) => e.stopPropagation()}
                                                 onChange={(e) => updateToy(toy.id, { name: e.target.value })}
                                             />
-                                            <span className="text-[10px] text-gray-400">{toy.buttons.length} Buttons</span>
+                                            <span className="text-[10px] text-gray-400">{t('toy_count', { count: toy.buttons.length })}</span>
                                         </div>
                                         <div className="flex gap-1">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleExportToy(toy); }}
                                                 className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-white rounded-lg transition-colors"
-                                                title="Export Toy"
+                                                title={t('export_toy')}
                                             >
                                                 <Download size={18} />
                                             </button>
@@ -355,7 +375,7 @@ const App: React.FC = () => {
                                                 onClick={(e) => { e.stopPropagation(); removeToy(toy.id); }}
                                                 disabled={toys.length <= 1}
                                                 className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-white rounded-lg transition-colors disabled:opacity-0"
-                                                title="Delete Toy"
+                                                title={t('delete_toy')}
                                             >
                                                 <Trash2 size={18} />
                                             </button>
@@ -366,7 +386,7 @@ const App: React.FC = () => {
                                     onClick={addToy}
                                     className="w-full py-2 border border-dashed border-gray-300 rounded-xl text-gray-400 text-sm font-semibold flex items-center justify-center gap-2 hover:border-blue-400 hover:text-blue-500 transition-colors"
                                 >
-                                    <Plus size={16} /> Add New Toy
+                                    <Plus size={16} /> {t('add_toy')}
                                 </button>
                             </div>
                         </div>
@@ -374,17 +394,17 @@ const App: React.FC = () => {
                         {/* Data Management */}
                         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
                             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                                <Database size={16} /> Data Management
+                                <Database size={16} /> {t('data_management')}
                             </h2>
                             <div className="grid grid-cols-2 gap-3">
                                 <button
                                     onClick={handleExport}
                                     className="flex items-center justify-center gap-2 py-3 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
                                 >
-                                    <Download size={16} className="text-blue-500" /> Export
+                                    <Download size={16} className="text-blue-500" /> {t('export')}
                                 </button>
                                 <label className="flex items-center justify-center gap-2 py-3 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm cursor-pointer">
-                                    <Upload size={16} className="text-green-500" /> Import
+                                    <Upload size={16} className="text-green-500" /> {t('import')}
                                     <input
                                         type="file"
                                         accept=".json"
@@ -393,13 +413,13 @@ const App: React.FC = () => {
                                     />
                                 </label>
                             </div>
-                            <p className="mt-3 text-[10px] text-gray-400 text-center">匯出結果包含所有玩具按鈕與音訊設定</p>
+                            <p className="mt-3 text-[10px] text-gray-400 text-center">{t('export_hint')}</p>
                         </div>
 
                         {/* Active Toy Settings */}
                         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
-                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">"{activeToy.name}" Settings</h2>
-                            <label className="text-xs text-gray-400 font-semibold mb-2 block">Casing Color</label>
+                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">{t('settings_title', { name: activeToy.name })}</h2>
+                            <label className="text-xs text-gray-400 font-semibold mb-2 block">{t('case_color')}</label>
                             <div className="flex flex-wrap gap-2">
                                 {ALL_COLORS.map((c) => (
                                     <button
@@ -422,7 +442,7 @@ const App: React.FC = () => {
 
                         {/* Buttons Configuration */}
                         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
-                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Buttons</h2>
+                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">{t('buttons')}</h2>
                             <div className="space-y-4">
                                 {buttons.map((btn) => (
                                     <div key={btn.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
@@ -456,14 +476,14 @@ const App: React.FC = () => {
                                             <div className="flex-1" />
                                             <div className="flex gap-1.5">
                                                 <button onClick={() => playSound(btn)} disabled={!btn.audioUrl} className={`p-2 rounded-lg ${btn.audioUrl ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-300'}`}><Play size={14} /></button>
-                                                <button onClick={() => recordingId === btn.id ? stopRecording() : startRecording(btn.id)} className={`px-2 py-1 rounded-lg text-xs font-bold ${recordingId === btn.id ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-700'}`}>{recordingId === btn.id ? 'Stop' : 'Rec'}</button>
-                                                <label className="px-2 py-1 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 cursor-pointer">Up<input type="file" accept="audio/*" className="hidden" onChange={(e) => handleFileUpload(btn.id, e)} /></label>
+                                                <button onClick={() => recordingId === btn.id ? stopRecording() : startRecording(btn.id)} className={`px-2 py-1 rounded-lg text-xs font-bold ${recordingId === btn.id ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-700'}`}>{recordingId === btn.id ? t('stop') : t('record')}</button>
+                                                <label className="px-2 py-1 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 cursor-pointer">{t('upload')}<input type="file" accept="audio/*" className="hidden" onChange={(e) => handleFileUpload(btn.id, e)} /></label>
                                             </div>
                                         </div>
                                     </div>
                                 ))}
                                 <button onClick={addButton} className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-400 font-semibold flex items-center justify-center gap-2">
-                                    <Plus size={20} /> Add Button
+                                    <Plus size={20} /> {t('add_button')}
                                 </button>
                             </div>
                         </div>
@@ -483,12 +503,12 @@ const App: React.FC = () => {
                                     <KeyButton key={config.id} config={config} onClick={playSound} />
                                 ))}
                                 {buttons.length === 0 && (
-                                    <div className={`col-span-2 text-center p-8 ${caseStyles.text} font-bold`}>No buttons!</div>
+                                    <div className={`col-span-2 text-center p-8 ${caseStyles.text} font-bold`}>{t('no_buttons')}</div>
                                 )}
                             </div>
                         </div>
                         <div className="mt-8 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                            <p className="text-gray-400 text-sm">Tap to play sound</p>
+                            <p className="text-gray-400 text-sm">{t('tap_to_play')}</p>
                         </div>
                     </div>
                 )}
