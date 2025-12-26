@@ -1,9 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { KEYPAD_CONFIG, APP_TITLE, APP_SUBTITLE } from './constants';
 import KeyButton from './components/KeyButton';
-import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database } from 'lucide-react';
 import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState } from './types';
-import { saveGlobalState, loadGlobalState } from './utils/storage';
+import { saveGlobalState, loadGlobalState, exportAllData, importAllData } from './utils/storage';
 import { playBuffer, decodeAudio } from './utils/audio';
 import pkg from '../package.json';
 
@@ -119,6 +119,13 @@ const App: React.FC = () => {
         setRecordingId(null);
     };
 
+    const handleFileUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const audioUrl = URL.createObjectURL(file);
+        updateButton(id, { audioUrl });
+    };
+
     // --- Data Management: Toys ---
     const addToy = () => {
         const newId = `toy_${Date.now()}`;
@@ -172,6 +179,49 @@ const App: React.FC = () => {
 
     const deleteAudio = (id: string) => {
         updateButton(id, { audioUrl: null });
+    };
+
+    const handleExport = async () => {
+        try {
+            const json = await exportAllData({ toys, activeToyId });
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `fun-button-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error("Export failed", e);
+            alert("匯出失敗");
+        }
+    };
+
+    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const content = event.target?.result as string;
+                    const newState = await importAllData(content);
+                    setToys(newState.toys);
+                    setActiveToyId(newState.activeToyId);
+                    alert("匯入成功！");
+                } catch (err) {
+                    console.error("Import parsing failed", err);
+                    alert("匯入失敗，請檢查檔案格式");
+                }
+            };
+            reader.readAsText(file);
+        } catch (e) {
+            console.error("Import failed", e);
+            alert("匯入讀取失敗");
+        }
+        // Reset input
+        e.target.value = '';
     };
 
     // --- Layout Helpers ---
@@ -279,6 +329,31 @@ const App: React.FC = () => {
                                     <Plus size={16} /> Add New Toy
                                 </button>
                             </div>
+                        </div>
+
+                        {/* Data Management */}
+                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
+                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <Database size={16} /> Data Management
+                            </h2>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={handleExport}
+                                    className="flex items-center justify-center gap-2 py-3 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+                                >
+                                    <Download size={16} className="text-blue-500" /> Export All
+                                </button>
+                                <label className="flex items-center justify-center gap-2 py-3 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm cursor-pointer">
+                                    <Upload size={16} className="text-green-500" /> Import All
+                                    <input
+                                        type="file"
+                                        accept=".json"
+                                        className="hidden"
+                                        onChange={handleImport}
+                                    />
+                                </label>
+                            </div>
+                            <p className="mt-3 text-[10px] text-gray-400 text-center">匯出結果包含所有玩具按鈕與音訊設定</p>
                         </div>
 
                         {/* Active Toy Settings */}
