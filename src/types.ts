@@ -11,6 +11,18 @@ export interface KeyConfig {
   audioUrl?: string | null;
 }
 
+export interface ToyConfig {
+  id: string;
+  name: string;
+  settings: AppSettings;
+  buttons: KeyConfig[];
+}
+
+export interface GlobalState {
+  toys: ToyConfig[];
+  activeToyId: string;
+}
+
 export interface LogEntry {
   id: string;
   timestamp: Date;

@@ -1,19 +1,26 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { KEYPAD_CONFIG, APP_TITLE, APP_SUBTITLE } from './constants';
 import KeyButton from './components/KeyButton';
-import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle } from 'lucide-react';
-import { KeyConfig, KeyColor, AppSettings } from './types';
-import { saveAppData, loadAppData } from './utils/storage';
+import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft } from 'lucide-react';
+import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState } from './types';
+import { saveGlobalState, loadGlobalState } from './utils/storage';
 import { playBuffer, decodeAudio } from './utils/audio';
 import pkg from '../package.json';
 
 const App: React.FC = () => {
     // --- State ---
-    const [buttons, setButtons] = useState<KeyConfig[]>(KEYPAD_CONFIG);
-    const [settings, setSettings] = useState<AppSettings>({ caseColor: 'yellow' });
+    const [toys, setToys] = useState<ToyConfig[]>([
+        { id: 'toy_default', name: 'Default Toy', settings: { caseColor: 'yellow' }, buttons: KEYPAD_CONFIG }
+    ]);
+    const [activeToyId, setActiveToyId] = useState<string>('toy_default');
     const [isEditing, setIsEditing] = useState(false);
     const [recordingId, setRecordingId] = useState<string | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
+
+    // --- Derived State ---
+    const activeToy = toys.find(t => t.id === activeToyId) || toys[0];
+    const buttons = activeToy.buttons;
+    const settings = activeToy.settings;
 
     // --- Refs ---
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -23,10 +30,10 @@ const App: React.FC = () => {
 
     // --- Persistence ---
     useEffect(() => {
-        loadAppData().then((data) => {
-            if (data) {
-                setButtons(data.buttons);
-                setSettings(data.settings);
+        loadGlobalState().then((data) => {
+            if (data && data.toys.length > 0) {
+                setToys(data.toys);
+                setActiveToyId(data.activeToyId);
             }
             setIsLoaded(true);
         });
@@ -34,18 +41,17 @@ const App: React.FC = () => {
 
     useEffect(() => {
         if (isLoaded) {
-            saveAppData(buttons, settings);
+            saveGlobalState({ toys, activeToyId });
         }
-    }, [buttons, settings, isLoaded]);
+    }, [toys, activeToyId, isLoaded]);
 
-    // --- Audio Logic: Caching ---
+    // --- Audio Logic: Caching (Only for current toy's buttons for performance) ---
     useEffect(() => {
         if (!isLoaded) return;
 
         const syncAudio = async () => {
             const currentButtons = [...buttons];
             for (const btn of currentButtons) {
-                // If url has changed or is new, and exists
                 if (btn.audioUrl && btn.audioUrl !== lastUrlsRef.current[btn.id]) {
                     try {
                         const response = await fetch(btn.audioUrl);
@@ -61,15 +67,6 @@ const App: React.FC = () => {
                     delete lastUrlsRef.current[btn.id];
                 }
             }
-
-            // Cleanup removed buttons
-            const currentIds = new Set(buttons.map(b => b.id));
-            Object.keys(audioBuffersRef.current).forEach(id => {
-                if (!currentIds.has(id)) {
-                    delete audioBuffersRef.current[id];
-                    delete lastUrlsRef.current[id];
-                }
-            });
         };
 
         syncAudio();
@@ -81,9 +78,8 @@ const App: React.FC = () => {
         if (buffer) {
             playBuffer(buffer);
         } else if (config.audioUrl) {
-            // Fallback for cases where buffer isn't ready yet
             const audio = new Audio(config.audioUrl);
-            audio.play().catch(e => console.error("Fallback playback failed:", e));
+            audio.play().catch(e => console.error("Playback failed:", e));
         }
     }, []);
 
@@ -105,8 +101,6 @@ const App: React.FC = () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 const audioUrl = URL.createObjectURL(audioBlob);
                 updateButton(id, { audioUrl });
-
-                // Stop all tracks to release microphone
                 stream.getTracks().forEach(track => track.stop());
             };
 
@@ -114,7 +108,7 @@ const App: React.FC = () => {
             setRecordingId(id);
         } catch (err) {
             console.error("Error accessing microphone:", err);
-            alert("Could not access microphone. Please check permissions.");
+            alert("Could not access microphone.");
         }
     };
 
@@ -125,18 +119,40 @@ const App: React.FC = () => {
         setRecordingId(null);
     };
 
-    // --- Audio Logic: Upload ---
-    const handleFileUpload = (id: string, event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const audioUrl = URL.createObjectURL(file);
-            updateButton(id, { audioUrl });
+    // --- Data Management: Toys ---
+    const addToy = () => {
+        const newId = `toy_${Date.now()}`;
+        const newToy: ToyConfig = {
+            id: newId,
+            name: `Toy ${toys.length + 1}`,
+            settings: { caseColor: 'yellow' },
+            buttons: []
+        };
+        setToys([...toys, newToy]);
+        setActiveToyId(newId);
+    };
+
+    const removeToy = (id: string) => {
+        if (toys.length <= 1) return;
+        const newToys = toys.filter(t => t.id !== id);
+        setToys(newToys);
+        if (activeToyId === id) {
+            setActiveToyId(newToys[0].id);
         }
     };
 
-    // --- Data Management ---
+    const updateToy = (id: string, updates: Partial<ToyConfig>) => {
+        setToys(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    };
+
+    const updateActiveSettings = (updates: Partial<AppSettings>) => {
+        updateToy(activeToyId, { settings: { ...settings, ...updates } });
+    };
+
+    // --- Data Management: Buttons ---
     const updateButton = (id: string, updates: Partial<KeyConfig>) => {
-        setButtons(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
+        const newButtons = buttons.map(b => b.id === id ? { ...b, ...updates } : b);
+        updateToy(activeToyId, { buttons: newButtons });
     };
 
     const addButton = () => {
@@ -147,11 +163,11 @@ const App: React.FC = () => {
             color: 'white',
             audioUrl: null
         };
-        setButtons(prev => [...prev, newButton]);
+        updateToy(activeToyId, { buttons: [...buttons, newButton] });
     };
 
     const removeButton = (id: string) => {
-        setButtons(prev => prev.filter(b => b.id !== id));
+        updateToy(activeToyId, { buttons: buttons.filter(b => b.id !== id) });
     };
 
     const deleteAudio = (id: string) => {
@@ -161,7 +177,6 @@ const App: React.FC = () => {
     // --- Layout Helpers ---
     const gridCols = buttons.length <= 4 ? 'grid-cols-2' : 'grid-cols-3';
     const containerWidth = buttons.length <= 4 ? 'max-w-[320px]' : 'max-w-[480px]';
-
     const ALL_COLORS: KeyColor[] = ['white', 'yellow', 'blue', 'red', 'green', 'purple', 'orange'];
 
     const getCaseStyles = (color: KeyColor) => {
@@ -172,7 +187,6 @@ const App: React.FC = () => {
             case 'green': return { outer: 'bg-[#B4E4B4] border-[#94C494]', inner: 'bg-[#94C494]', text: 'text-green-900/50' };
             case 'purple': return { outer: 'bg-[#D1C4E9] border-[#B1A4C9]', inner: 'bg-[#B1A4C9]', text: 'text-purple-900/50' };
             case 'orange': return { outer: 'bg-[#FFCCBC] border-[#DFAC9C]', inner: 'bg-[#DFAC9C]', text: 'text-orange-900/50' };
-            case 'white':
             default: return { outer: 'bg-[#F0F4F8] border-[#CED4DA]', inner: 'bg-[#CED4DA]', text: 'text-gray-900/50' };
         }
     };
@@ -181,15 +195,14 @@ const App: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#e0e5ec] text-gray-800 flex flex-col items-center py-8 px-4 sm:px-6 relative overflow-y-auto">
-
-            {/* Decorative background blobs */}
+            {/* Background blobs */}
             <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-200/30 rounded-full blur-3xl pointer-events-none" />
             <div className="fixed bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-yellow-200/30 rounded-full blur-3xl pointer-events-none" />
 
-            {/* Header & Controls */}
-            <header className="mb-16 text-center relative z-10 mt-4 w-full max-w-2xl flex flex-col items-center">
+            {/* Header */}
+            <header className="mb-8 text-center relative z-10 mt-4 w-full max-w-2xl flex flex-col items-center">
                 <div className="flex items-center justify-between w-full mb-4 px-4">
-                    <div className="w-10"></div> {/* Spacer for centering */}
+                    <div className="w-10"></div>
                     <div className="flex flex-col items-center">
                         <div className="inline-flex items-center justify-center p-3 bg-white rounded-full shadow-md mb-2">
                             <Bot className="w-8 h-8 text-yellow-500" />
@@ -200,201 +213,173 @@ const App: React.FC = () => {
                     <button
                         onClick={() => setIsEditing(!isEditing)}
                         className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${isEditing ? 'bg-blue-500 text-white shadow-inner' : 'bg-white text-gray-600 shadow-sm hover:bg-gray-50'}`}
-                        title={isEditing ? "Done Editing" : "Edit Settings"}
                     >
                         {isEditing ? <Check size={20} /> : <Settings size={20} />}
                     </button>
                 </div>
+
+                {/* Toy Selector Bar */}
+                {!isEditing && (
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 w-full max-w-md px-4 scrollbar-hide no-scrollbar">
+                        {toys.map(toy => (
+                            <button
+                                key={toy.id}
+                                onClick={() => setActiveToyId(toy.id)}
+                                className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeToyId === toy.id ? 'bg-gray-800 text-white shadow-md' : 'bg-white/50 text-gray-500 hover:bg-white'}`}
+                            >
+                                {toy.name}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </header>
 
             <main className="flex-1 w-full flex flex-col items-center justify-start relative z-10 pb-20">
-
                 {isEditing ? (
-                    // --- EDIT MODE UI ---
                     <div className="w-full max-w-lg space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                        {/* Global Settings */}
+                        {/* Manage Toys */}
                         <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
-                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Global Settings</h2>
-                            <div>
-                                <label className="text-xs text-gray-400 font-semibold mb-2 block">Casing Color</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {ALL_COLORS.map((c) => (
-                                        <button
-                                            key={c}
-                                            onClick={() => setSettings({ ...settings, caseColor: c })}
-                                            className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-95 ${settings.caseColor === c ? 'border-gray-800 scale-110' : 'border-transparent'
-                                                }`}
-                                            style={{
-                                                backgroundColor:
-                                                    c === 'white' ? '#F0F4F8' :
-                                                        c === 'yellow' ? '#F3E388' :
-                                                            c === 'blue' ? '#A7C7E7' :
-                                                                c === 'red' ? '#FFB7B2' :
-                                                                    c === 'green' ? '#B4E4B4' :
-                                                                        c === 'purple' ? '#D1C4E9' : '#FFCCBC'
-                                            }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
-                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Button Configuration</h2>
-
-                            <div className="space-y-4">
-                                {buttons.map((btn) => (
-                                    <div key={btn.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
-                                        {/* Top Row: Text & Delete */}
-                                        <div className="flex gap-3">
-                                            <div className="flex-1">
-                                                <label className="text-xs text-gray-400 font-semibold mb-1 block">Button Text</label>
-                                                <textarea
-                                                    value={btn.text}
-                                                    onChange={(e) => updateButton(btn.id, { text: e.target.value })}
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 h-[60px]"
-                                                />
-                                            </div>
+                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <LayoutGrid size={16} /> Manage Toys
+                            </h2>
+                            <div className="space-y-3">
+                                {toys.map(toy => (
+                                    <div key={toy.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${activeToyId === toy.id ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-100'}`}>
+                                        <div className="flex-1 flex flex-col">
+                                            <input
+                                                className="bg-transparent font-bold text-sm focus:outline-none"
+                                                value={toy.name}
+                                                onChange={(e) => updateToy(toy.id, { name: e.target.value })}
+                                            />
+                                            <span className="text-[10px] text-gray-400">{toy.buttons.length} Buttons</span>
+                                        </div>
+                                        <div className="flex gap-2">
                                             <button
-                                                onClick={() => removeButton(btn.id)}
-                                                className="text-gray-400 hover:text-red-500 self-start p-1"
-                                                title="Remove Button"
+                                                onClick={() => setActiveToyId(toy.id)}
+                                                className={`p-1.5 rounded-lg transition-colors ${activeToyId === toy.id ? 'text-blue-500' : 'text-gray-300 hover:text-blue-400'}`}
+                                                title="Select Toy"
+                                            >
+                                                <Check size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => removeToy(toy.id)}
+                                                disabled={toys.length <= 1}
+                                                className="p-1.5 text-gray-300 hover:text-red-500 disabled:opacity-0"
+                                                title="Delete Toy"
                                             >
                                                 <Trash2 size={18} />
                                             </button>
                                         </div>
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={addToy}
+                                    className="w-full py-2 border border-dashed border-gray-300 rounded-xl text-gray-400 text-sm font-semibold flex items-center justify-center gap-2 hover:border-blue-400 hover:text-blue-500 transition-colors"
+                                >
+                                    <Plus size={16} /> Add New Toy
+                                </button>
+                            </div>
+                        </div>
 
-                                        {/* Middle Row: Color Picker */}
-                                        <div>
-                                            <label className="text-xs text-gray-400 font-semibold mb-2 block">Color</label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {ALL_COLORS.map((c) => (
-                                                    <button
-                                                        key={c}
-                                                        onClick={() => updateButton(btn.id, { color: c })}
-                                                        className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-95 ${btn.color === c ? 'border-gray-800 scale-110' : 'border-transparent'
-                                                            }`}
-                                                        style={{
-                                                            backgroundColor:
-                                                                c === 'white' ? '#F0F4F8' :
-                                                                    c === 'yellow' ? '#F3E388' :
-                                                                        c === 'blue' ? '#A7C7E7' :
-                                                                            c === 'red' ? '#FFB7B2' :
-                                                                                c === 'green' ? '#B4E4B4' :
-                                                                                    c === 'purple' ? '#D1C4E9' : '#FFCCBC'
-                                                        }}
-                                                    />
-                                                ))}
+                        {/* Active Toy Settings */}
+                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
+                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">"{activeToy.name}" Settings</h2>
+                            <label className="text-xs text-gray-400 font-semibold mb-2 block">Casing Color</label>
+                            <div className="flex flex-wrap gap-2">
+                                {ALL_COLORS.map((c) => (
+                                    <button
+                                        key={c}
+                                        onClick={() => updateActiveSettings({ caseColor: c })}
+                                        className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-95 ${settings.caseColor === c ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                                        style={{
+                                            backgroundColor:
+                                                c === 'white' ? '#F0F4F8' :
+                                                    c === 'yellow' ? '#F3E388' :
+                                                        c === 'blue' ? '#A7C7E7' :
+                                                            c === 'red' ? '#FFB7B2' :
+                                                                c === 'green' ? '#B4E4B4' :
+                                                                    c === 'purple' ? '#D1C4E9' : '#FFCCBC'
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Buttons Configuration */}
+                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
+                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Buttons</h2>
+                            <div className="space-y-4">
+                                {buttons.map((btn) => (
+                                    <div key={btn.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
+                                        <div className="flex gap-3">
+                                            <div className="flex-1">
+                                                <textarea
+                                                    value={btn.text}
+                                                    onChange={(e) => updateButton(btn.id, { text: e.target.value })}
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium resize-none focus:outline-none h-[60px]"
+                                                />
                                             </div>
+                                            <button onClick={() => removeButton(btn.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={18} /></button>
                                         </div>
-
-                                        {/* Bottom Row: Audio Controls */}
-                                        <div>
-                                            <label className="text-xs text-gray-400 font-semibold mb-2 block">Sound</label>
-                                            <div className="flex flex-wrap items-center gap-2">
-
-                                                {/* Play Preview */}
+                                        <div className="flex flex-wrap gap-2">
+                                            {ALL_COLORS.map((c) => (
                                                 <button
-                                                    onClick={() => playSound(btn)}
-                                                    disabled={!btn.audioUrl}
-                                                    className={`p-2 rounded-lg flex items-center justify-center transition-colors ${btn.audioUrl ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-300'}`}
-                                                    title="Preview Sound"
-                                                >
-                                                    <Play size={16} fill={btn.audioUrl ? "currentColor" : "none"} />
-                                                </button>
-
-                                                {/* Recording Button */}
-                                                <button
-                                                    onClick={() => recordingId === btn.id ? stopRecording() : startRecording(btn.id)}
-                                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${recordingId === btn.id
-                                                        ? 'bg-red-500 text-white animate-pulse'
-                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                                        }`}
-                                                >
-                                                    {recordingId === btn.id ? <StopCircle size={16} /> : <Mic size={16} />}
-                                                    {recordingId === btn.id ? 'Stop' : 'Record'}
-                                                </button>
-
-                                                {/* Upload Button */}
-                                                <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer">
-                                                    <Upload size={16} />
-                                                    Upload
-                                                    <input
-                                                        type="file"
-                                                        accept="audio/*"
-                                                        className="hidden"
-                                                        onChange={(e) => handleFileUpload(btn.id, e)}
-                                                    />
-                                                </label>
-
-                                                {/* Clear Audio */}
-                                                {btn.audioUrl && (
-                                                    <button
-                                                        onClick={() => deleteAudio(btn.id)}
-                                                        className="p-2 text-red-400 hover:bg-red-50 rounded-lg ml-auto"
-                                                        title="Delete Sound"
-                                                    >
-                                                        <X size={16} />
-                                                    </button>
-                                                )}
-
-                                                {btn.audioUrl && <span className="text-[10px] text-green-600 bg-green-50 px-2 py-1 rounded ml-2">Sound Ready</span>}
+                                                    key={c}
+                                                    onClick={() => updateButton(btn.id, { color: c })}
+                                                    className={`w-6 h-6 rounded-full border transition-transform ${btn.color === c ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                                                    style={{
+                                                        backgroundColor:
+                                                            c === 'white' ? '#F0F4F8' :
+                                                                c === 'yellow' ? '#F3E388' :
+                                                                    c === 'blue' ? '#A7C7E7' :
+                                                                        c === 'red' ? '#FFB7B2' :
+                                                                            c === 'green' ? '#B4E4B4' :
+                                                                                c === 'purple' ? '#D1C4E9' : '#FFCCBC'
+                                                    }}
+                                                />
+                                            ))}
+                                            <div className="flex-1" />
+                                            <div className="flex gap-1.5">
+                                                <button onClick={() => playSound(btn)} disabled={!btn.audioUrl} className={`p-2 rounded-lg ${btn.audioUrl ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-300'}`}><Play size={14} /></button>
+                                                <button onClick={() => recordingId === btn.id ? stopRecording() : startRecording(btn.id)} className={`px-2 py-1 rounded-lg text-xs font-bold ${recordingId === btn.id ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-700'}`}>{recordingId === btn.id ? 'Stop' : 'Rec'}</button>
+                                                <label className="px-2 py-1 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 cursor-pointer">Up<input type="file" accept="audio/*" className="hidden" onChange={(e) => handleFileUpload(btn.id, e)} /></label>
                                             </div>
                                         </div>
                                     </div>
                                 ))}
-
-                                <button
-                                    onClick={addButton}
-                                    className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-400 font-semibold flex items-center justify-center gap-2 hover:border-blue-400 hover:text-blue-500 transition-colors"
-                                >
-                                    <Plus size={20} />
-                                    Add New Button
+                                <button onClick={addButton} className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-400 font-semibold flex items-center justify-center gap-2">
+                                    <Plus size={20} /> Add Button
                                 </button>
                             </div>
                         </div>
                     </div>
                 ) : (
-                    // --- PLAY MODE UI ---
                     <div className={`relative group perspective-1000 transform transition-transform duration-300 ${containerWidth}`}>
-                        {/* Keyring Loop Visual - Only show if it looks like a cube (<=4) */}
                         {buttons.length <= 4 && (
                             <>
                                 <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-16 h-16 border-[6px] border-gray-300 rounded-full z-0 transform -translate-y-2" />
                                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-4 h-8 bg-gray-300 rounded-full z-0" />
                             </>
                         )}
-
-                        {/* Casing Body */}
                         <div className={`${caseStyles.outer} p-5 pb-7 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)] border-b-[8px] transition-all duration-300`}>
-                            {/* Inner Grid */}
+                            <h2 className={`mb-3 text-center font-black uppercase tracking-tighter text-sm ${caseStyles.text}`}>{activeToy.name}</h2>
                             <div className={`grid ${gridCols} gap-4 ${caseStyles.inner} p-2 rounded-2xl transition-all duration-300`}>
                                 {buttons.map((config) => (
-                                    <KeyButton
-                                        key={config.id}
-                                        config={config}
-                                        onClick={playSound}
-                                    />
+                                    <KeyButton key={config.id} config={config} onClick={playSound} />
                                 ))}
                                 {buttons.length === 0 && (
-                                    <div className={`col-span-2 text-center p-8 ${caseStyles.text} font-bold`}>
-                                        No buttons! <br /> Click settings to add some.
-                                    </div>
+                                    <div className={`col-span-2 text-center p-8 ${caseStyles.text} font-bold`}>No buttons!</div>
                                 )}
                             </div>
                         </div>
-
-                        {/* Instructions */}
                         <div className="mt-8 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                            <p className="text-gray-400 text-sm">Click buttons to play sound</p>
+                            <p className="text-gray-400 text-sm">Tap to play sound</p>
                         </div>
                     </div>
                 )}
-
                 <footer className="mt-12 text-gray-400 text-[10px] font-medium tracking-widest uppercase">
                     v{pkg.version}
                 </footer>
-
             </main>
         </div>
     );
