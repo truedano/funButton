@@ -1,6 +1,7 @@
 import React from 'react';
 import { KeyConfig } from '../types';
 import { MousePointerClick } from 'lucide-react';
+import { playClickSound } from '../utils/audio';
 
 interface KeyButtonProps {
   config: KeyConfig;
@@ -25,7 +26,7 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled }) => {
 
   // Styles mimic a high-profile mechanical keycap with 3D depth
   const baseStyles = "relative w-full aspect-square rounded-xl transition-all duration-100 flex items-center justify-center select-none group active:scale-[0.98]";
-  
+
   // 3D effect using box-shadow and translation
   const shadowStyles = "shadow-[0_8px_0_rgb(0,0,0,0.15)] active:shadow-none active:translate-y-[8px]";
 
@@ -33,11 +34,12 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled }) => {
     <button
       className={`${baseStyles} ${getColorStyles(config.color)} ${shadowStyles} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       onClick={() => !disabled && onClick(config)}
+      onPointerDown={() => !disabled && playClickSound()}
       disabled={disabled}
     >
       {/* Keycap Surface Texture/Sheen */}
       <div className="absolute inset-2 rounded-lg bg-gradient-to-br from-white/40 to-transparent pointer-events-none opacity-50" />
-      
+
       {/* Text Content */}
       <div className="relative z-10 text-center font-bold text-lg sm:text-xl leading-tight whitespace-pre-line tracking-tight px-1 break-words w-full overflow-hidden">
         {config.text}

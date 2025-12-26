@@ -4,6 +4,7 @@ import KeyButton from './components/KeyButton';
 import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle } from 'lucide-react';
 import { KeyConfig, KeyColor } from './types';
 import { saveButtons, loadButtons } from './utils/storage';
+import { playBuffer, decodeAudio } from './utils/audio';
 
 const App: React.FC = () => {
     // --- State ---
@@ -15,7 +16,8 @@ const App: React.FC = () => {
     // --- Refs ---
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
-    const audioElementsRef = useRef<{ [key: string]: HTMLAudioElement }>({});
+    const audioBuffersRef = useRef<{ [key: string]: AudioBuffer }>({});
+    const lastUrlsRef = useRef<{ [key: string]: string | null }>({});
 
     // --- Persistence ---
     useEffect(() => {
@@ -33,13 +35,53 @@ const App: React.FC = () => {
         }
     }, [buttons, isLoaded]);
 
+    // --- Audio Logic: Caching ---
+    useEffect(() => {
+        if (!isLoaded) return;
+
+        const syncAudio = async () => {
+            const currentButtons = [...buttons];
+            for (const btn of currentButtons) {
+                // If url has changed or is new, and exists
+                if (btn.audioUrl && btn.audioUrl !== lastUrlsRef.current[btn.id]) {
+                    try {
+                        const response = await fetch(btn.audioUrl);
+                        const arrayBuffer = await response.arrayBuffer();
+                        const audioBuffer = await decodeAudio(arrayBuffer);
+                        audioBuffersRef.current[btn.id] = audioBuffer;
+                        lastUrlsRef.current[btn.id] = btn.audioUrl;
+                    } catch (e) {
+                        console.error(`Failed to decode audio for button ${btn.id}`, e);
+                    }
+                } else if (!btn.audioUrl) {
+                    delete audioBuffersRef.current[btn.id];
+                    delete lastUrlsRef.current[btn.id];
+                }
+            }
+
+            // Cleanup removed buttons
+            const currentIds = new Set(buttons.map(b => b.id));
+            Object.keys(audioBuffersRef.current).forEach(id => {
+                if (!currentIds.has(id)) {
+                    delete audioBuffersRef.current[id];
+                    delete lastUrlsRef.current[id];
+                }
+            });
+        };
+
+        syncAudio();
+    }, [buttons, isLoaded]);
+
     // --- Audio Logic: Playback ---
     const playSound = useCallback((config: KeyConfig) => {
-        if (!config.audioUrl) return;
-
-        // Create a new Audio object for overlapping playback
-        const audio = new Audio(config.audioUrl);
-        audio.play().catch(e => console.error("Playback failed:", e));
+        const buffer = audioBuffersRef.current[config.id];
+        if (buffer) {
+            playBuffer(buffer);
+        } else if (config.audioUrl) {
+            // Fallback for cases where buffer isn't ready yet
+            const audio = new Audio(config.audioUrl);
+            audio.play().catch(e => console.error("Fallback playback failed:", e));
+        }
     }, []);
 
     // --- Audio Logic: Recording ---
@@ -216,8 +258,8 @@ const App: React.FC = () => {
                                                 <button
                                                     onClick={() => recordingId === btn.id ? stopRecording() : startRecording(btn.id)}
                                                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${recordingId === btn.id
-                                                            ? 'bg-red-500 text-white animate-pulse'
-                                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                        ? 'bg-red-500 text-white animate-pulse'
+                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                                         }`}
                                                 >
                                                     {recordingId === btn.id ? <StopCircle size={16} /> : <Mic size={16} />}
