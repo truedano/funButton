@@ -275,8 +275,8 @@ const App: React.FC = () => {
             {toast && (
                 <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
                     <div className={`px-4 py-3 rounded-2xl shadow-lg backdrop-blur-md flex items-center gap-3 border ${toast.type === 'success'
-                            ? 'bg-white/80 border-green-100 text-green-800'
-                            : 'bg-white/80 border-red-100 text-red-800'
+                        ? 'bg-white/80 border-green-100 text-green-800'
+                        : 'bg-white/80 border-red-100 text-red-800'
                         }`}>
                         {toast.type === 'success' ? <CheckCircle size={18} className="text-green-500" /> : <AlertCircle size={18} className="text-red-500" />}
                         <span className="text-sm font-bold tracking-tight">{toast.message}</span>
@@ -329,34 +329,32 @@ const App: React.FC = () => {
                             </h2>
                             <div className="space-y-3">
                                 {toys.map(toy => (
-                                    <div key={toy.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${activeToyId === toy.id ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-100'}`}>
+                                    <div
+                                        key={toy.id}
+                                        onClick={() => setActiveToyId(toy.id)}
+                                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer group/toy ${activeToyId === toy.id ? 'bg-blue-50/50 border-blue-400 shadow-sm' : 'bg-white border-gray-100 hover:border-gray-300'}`}
+                                    >
                                         <div className="flex-1 flex flex-col">
                                             <input
-                                                className="bg-transparent font-bold text-sm focus:outline-none"
+                                                className="bg-transparent font-bold text-sm focus:outline-none cursor-text"
                                                 value={toy.name}
+                                                onClick={(e) => e.stopPropagation()}
                                                 onChange={(e) => updateToy(toy.id, { name: e.target.value })}
                                             />
                                             <span className="text-[10px] text-gray-400">{toy.buttons.length} Buttons</span>
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-1">
                                             <button
-                                                onClick={() => handleExportToy(toy)}
-                                                className="p-1.5 text-gray-300 hover:text-blue-500"
+                                                onClick={(e) => { e.stopPropagation(); handleExportToy(toy); }}
+                                                className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-white rounded-lg transition-colors"
                                                 title="Export Toy"
                                             >
                                                 <Download size={18} />
                                             </button>
                                             <button
-                                                onClick={() => setActiveToyId(toy.id)}
-                                                className={`p-1.5 rounded-lg transition-colors ${activeToyId === toy.id ? 'text-blue-500' : 'text-gray-300 hover:text-blue-400'}`}
-                                                title="Select Toy"
-                                            >
-                                                <Check size={18} />
-                                            </button>
-                                            <button
-                                                onClick={() => removeToy(toy.id)}
+                                                onClick={(e) => { e.stopPropagation(); removeToy(toy.id); }}
                                                 disabled={toys.length <= 1}
-                                                className="p-1.5 text-gray-300 hover:text-red-500 disabled:opacity-0"
+                                                className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-white rounded-lg transition-colors disabled:opacity-0"
                                                 title="Delete Toy"
                                             >
                                                 <Trash2 size={18} />
