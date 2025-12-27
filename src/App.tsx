@@ -670,7 +670,7 @@ const App: React.FC = () => {
                                             value={editingButton.text}
                                             onChange={(e) => updateButton(editingButton.id, { text: e.target.value })}
                                             placeholder={t('new_button_placeholder')}
-                                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold resize-none focus:outline-none focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all h-[100px] shadow-inner"
+                                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold resize-none focus:outline-none focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all h-[60px] shadow-inner"
                                         />
                                     </div>
 
