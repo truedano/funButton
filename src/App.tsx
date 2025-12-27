@@ -6,6 +6,7 @@ import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, L
 import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState } from './types';
 import { saveGlobalState, loadGlobalState, exportAllData, exportSingleToy, importData } from './utils/storage';
 import { playBuffer, decodeAudio, trimAndNormalize, audioBufferToWav, getAudioContext, ensureAudioContextStarted } from './utils/audio';
+import { getDarkerColor, getContrastingTextColor } from './utils/colorUtils';
 import pkg from '../package.json';
 
 const App: React.FC = () => {
@@ -406,15 +407,42 @@ const App: React.FC = () => {
     const containerWidth = buttons.length <= 4 ? 'max-w-[320px]' : 'max-w-[480px]';
     const ALL_COLORS: KeyColor[] = ['white', 'yellow', 'blue', 'red', 'green', 'purple', 'orange'];
 
-    const getCaseStyles = (color: KeyColor) => {
-        switch (color) {
-            case 'yellow': return { outer: 'bg-[#FFD66B] border-[#E5BC45]', inner: 'bg-[#E5BC45]', text: 'text-yellow-900/50' };
-            case 'blue': return { outer: 'bg-[#A7C7E7] border-[#86A6C6]', inner: 'bg-[#86A6C6]', text: 'text-blue-900/50' };
-            case 'red': return { outer: 'bg-[#FFB7B2] border-[#DF9792]', inner: 'bg-[#DF9792]', text: 'text-red-900/50' };
-            case 'green': return { outer: 'bg-[#B4E4B4] border-[#94C494]', inner: 'bg-[#94C494]', text: 'text-green-900/50' };
-            case 'purple': return { outer: 'bg-[#D1C4E9] border-[#B1A4C9]', inner: 'bg-[#B1A4C9]', text: 'text-purple-900/50' };
-            case 'orange': return { outer: 'bg-[#FFCCBC] border-[#DFAC9C]', inner: 'bg-[#DFAC9C]', text: 'text-orange-900/50' };
-            default: return { outer: 'bg-[#F0F4F8] border-[#CED4DA]', inner: 'bg-[#CED4DA]', text: 'text-gray-900/50' };
+    const getCaseStyles = (color: string) => {
+        const isPredefinedColor = ['white', 'yellow', 'blue', 'red', 'green', 'purple', 'orange'].includes(color);
+
+        if (isPredefinedColor) {
+            switch (color) {
+                case 'yellow': return { outer: 'bg-[#FFD66B] border-[#E5BC45]', inner: 'bg-[#E5BC45]', text: 'text-yellow-900/50' };
+                case 'blue': return { outer: 'bg-[#A7C7E7] border-[#86A6C6]', inner: 'bg-[#86A6C6]', text: 'text-blue-900/50' };
+                case 'red': return { outer: 'bg-[#FFB7B2] border-[#DF9792]', inner: 'bg-[#DF9792]', text: 'text-red-900/50' };
+                case 'green': return { outer: 'bg-[#B4E4B4] border-[#94C494]', inner: 'bg-[#94C494]', text: 'text-green-900/50' };
+                case 'purple': return { outer: 'bg-[#D1C4E9] border-[#B1A4C9]', inner: 'bg-[#B1A4C9]', text: 'text-purple-900/50' };
+                case 'orange': return { outer: 'bg-[#FFCCBC] border-[#DFAC9C]', inner: 'bg-[#DFAC9C]', text: 'text-orange-900/50' };
+                default: return { outer: 'bg-[#F0F4F8] border-[#CED4DA]', inner: 'bg-[#CED4DA]', text: 'text-gray-900/50' };
+            }
+        } else {
+            // Dynamic generation for custom colors
+            // Outer casing is the main color
+            // Border is darker version
+            // Inner keypad area is slightly darker than main color to create depth
+            // Text color is high contrast
+
+            // Note: We use inline styles for dynamic colors, so here we return empty or generic classes 
+            // and handle the specific colors via style props in the JSX where needed.
+            // BUT, for the layout to work, we need to return valid object. 
+            // However, the current implementation of caseStyles usage is class-based. 
+            // We need to refactor the usage site slightly or generate classes on fly which is hard with Tailwind.
+            // Better approach: Return a specific object that indicates custom color, and handle it in the return JSX.
+
+            // Actually, we can just return generic structure and use `style` attribute on the elements.
+            // Let's modify the usage site to accept style objects.
+            return {
+                isCustom: true,
+                color: color,
+                borderColor: getDarkerColor(color),
+                innerColor: getDarkerColor(color, 0.05), // Inner part slightly darker
+                textColor: getContrastingTextColor(color) === 'black' ? 'text-black/50' : 'text-white/50'
+            };
         }
     };
 
@@ -581,14 +609,44 @@ const App: React.FC = () => {
                                         }}
                                     />
                                 ))}
+                                <div className="relative">
+                                    <button
+                                        className={`w-8 h-8 rounded-full border-2 transition-all active:scale-90 flex items-center justify-center bg-gray-100 ${!ALL_COLORS.includes(settings.caseColor as any) ? 'border-gray-800 scale-110 shadow-md' : 'border-transparent shadow-sm'}`}
+                                        style={!ALL_COLORS.includes(settings.caseColor as any) ? { backgroundColor: settings.caseColor } : { background: 'conic-gradient(from 180deg at 50% 50%, #FF0000 0deg, #00FF00 120deg, #0000FF 240deg, #FF0000 360deg)' }}
+                                    >
+                                        {!ALL_COLORS.includes(settings.caseColor as any) ? null : <div className="w-3 h-3 rounded-full bg-white/50 backdrop-blur-sm" />}
+                                    </button>
+                                    <input
+                                        type="color"
+                                        value={!ALL_COLORS.includes(settings.caseColor as any) ? settings.caseColor : '#ffffff'}
+                                        onChange={(e) => updateActiveSettings({ caseColor: e.target.value })}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                </div>
                             </div>
                         </div>
 
                         {/* Interactive Preview Container */}
                         <div className="flex flex-col items-center py-4 bg-white/40 backdrop-blur-md rounded-3xl border border-white/50 shadow-inner overflow-hidden">
                             <div className={`relative group perspective-1000 transform transition-all duration-300 scale-90 sm:scale-100 ${containerWidth}`}>
-                                <div className={`${caseStyles.outer} p-5 pb-7 rounded-[2.5rem] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15)] border-b-[8px] transition-all duration-300`}>
-                                    <div className={`grid ${gridCols} gap-4 ${caseStyles.inner} p-2 rounded-2xl transition-all duration-300`}>
+                                <div
+                                    className={`${!caseStyles.isCustom ? caseStyles.outer : ''} p-5 pb-7 rounded-[2.5rem] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15)] border-b-[8px] transition-all duration-300`}
+                                    style={caseStyles.isCustom ? {
+                                        backgroundColor: caseStyles.color,
+                                        borderColor: caseStyles.borderColor,
+                                        color: caseStyles.textColor
+                                    } : {}}
+                                >
+                                    <h2
+                                        className={`mb-3 text-center font-black uppercase tracking-tighter text-sm ${!caseStyles.isCustom && caseStyles.text}`}
+                                        style={caseStyles.isCustom ? { color: caseStyles.textColor } : {}}
+                                    >
+                                        {activeToy.name}
+                                    </h2>
+                                    <div
+                                        className={`grid ${gridCols} gap-4 ${!caseStyles.isCustom && caseStyles.inner} p-2 rounded-2xl transition-all duration-300`}
+                                        style={caseStyles.isCustom ? { backgroundColor: caseStyles.innerColor } : {}}
+                                    >
                                         {buttons.map((config) => (
                                             <KeyButton
                                                 key={config.id}
@@ -622,13 +680,14 @@ const App: React.FC = () => {
                                         <div
                                             className="w-4 h-8 rounded-full shadow-inner"
                                             style={{
-                                                backgroundColor:
-                                                    editingButton.color === 'white' ? '#F0F4F8' :
+                                                backgroundColor: ['white', 'yellow', 'blue', 'red', 'green', 'purple', 'orange'].includes(editingButton.color) ?
+                                                    (editingButton.color === 'white' ? '#F0F4F8' :
                                                         editingButton.color === 'yellow' ? '#F3E388' :
                                                             editingButton.color === 'blue' ? '#A7C7E7' :
                                                                 editingButton.color === 'red' ? '#FFB7B2' :
                                                                     editingButton.color === 'green' ? '#B4E4B4' :
-                                                                        editingButton.color === 'purple' ? '#D1C4E9' : '#FFCCBC'
+                                                                        editingButton.color === 'purple' ? '#D1C4E9' : '#FFCCBC')
+                                                    : editingButton.color
                                             }}
                                         />
                                         <div>
@@ -693,6 +752,20 @@ const App: React.FC = () => {
                                                     }}
                                                 />
                                             ))}
+                                            <div className="relative">
+                                                <button
+                                                    className={`w-10 h-10 rounded-2xl border-2 transition-all active:scale-90 flex items-center justify-center bg-gray-100 ${!ALL_COLORS.includes(editingButton.color as any) ? 'border-gray-800 scale-110 shadow-md' : 'border-transparent shadow-sm'}`}
+                                                    style={!ALL_COLORS.includes(editingButton.color as any) ? { backgroundColor: editingButton.color } : { background: 'conic-gradient(from 180deg at 50% 50%, #FF0000 0deg, #00FF00 120deg, #0000FF 240deg, #FF0000 360deg)' }}
+                                                >
+                                                    {!ALL_COLORS.includes(editingButton.color as any) ? null : <div className="w-4 h-4 rounded-full bg-white/50 backdrop-blur-sm" />}
+                                                </button>
+                                                <input
+                                                    type="color"
+                                                    value={!ALL_COLORS.includes(editingButton.color as any) ? editingButton.color : '#ffffff'}
+                                                    onChange={(e) => updateButton(editingButton.id, { color: e.target.value })}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -739,14 +812,34 @@ const App: React.FC = () => {
                                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-4 h-8 bg-gray-300 rounded-full z-0" />
                             </>
                         )}
-                        <div className={`${caseStyles.outer} p-5 pb-7 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)] border-b-[8px] transition-all duration-300`}>
-                            <h2 className={`mb-3 text-center font-black uppercase tracking-tighter text-sm ${caseStyles.text}`}>{activeToy.name}</h2>
-                            <div className={`grid ${gridCols} gap-4 ${caseStyles.inner} p-2 rounded-2xl transition-all duration-300`}>
+                        <div
+                            className={`${!caseStyles.isCustom ? caseStyles.outer : ''} p-5 pb-7 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)] border-b-[8px] transition-all duration-300`}
+                            style={caseStyles.isCustom ? {
+                                backgroundColor: caseStyles.color,
+                                borderColor: caseStyles.borderColor,
+                                color: caseStyles.textColor
+                            } : {}}
+                        >
+                            <h2
+                                className={`mb-3 text-center font-black uppercase tracking-tighter text-sm ${!caseStyles.isCustom && caseStyles.text}`}
+                                style={caseStyles.isCustom ? { color: caseStyles.textColor } : {}}
+                            >
+                                {activeToy.name}
+                            </h2>
+                            <div
+                                className={`grid ${gridCols} gap-4 ${!caseStyles.isCustom && caseStyles.inner} p-2 rounded-2xl transition-all duration-300`}
+                                style={caseStyles.isCustom ? { backgroundColor: caseStyles.innerColor } : {}}
+                            >
                                 {buttons.map((config) => (
                                     <KeyButton key={config.id} config={config} onClick={playSound} />
                                 ))}
                                 {buttons.length === 0 && (
-                                    <div className={`col-span-2 text-center p-8 ${caseStyles.text} font-bold`}>{t('no_buttons')}</div>
+                                    <div
+                                        className={`col-span-2 text-center p-8 ${!caseStyles.isCustom && caseStyles.text} font-bold`}
+                                        style={caseStyles.isCustom ? { color: caseStyles.textColor } : {}}
+                                    >
+                                        {t('no_buttons')}
+                                    </div>
                                 )}
                             </div>
                         </div>
