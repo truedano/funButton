@@ -7,9 +7,11 @@ interface KeyButtonProps {
   config: KeyConfig;
   onClick: (config: KeyConfig) => void;
   disabled?: boolean;
+  isSelected?: boolean;
+  isActive?: boolean;
 }
 
-const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled }) => {
+const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSelected, isActive }) => {
   const getColorStyles = (color: string) => {
     switch (color) {
       case 'yellow':
@@ -38,11 +40,15 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled }) => {
 
   return (
     <button
-      className={`${baseStyles} ${getColorStyles(config.color)} ${shadowStyles} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`${baseStyles} ${getColorStyles(config.color)} ${shadowStyles} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${isSelected ? 'ring-4 ring-blue-400 ring-offset-4 scale-105' : ''} ${isActive ? 'animate-pulse' : ''}`}
       onClick={() => !disabled && onClick(config)}
       onPointerDown={() => !disabled && playClickSound()}
       disabled={disabled}
     >
+      {/* Selection Glow */}
+      {isSelected && (
+        <div className="absolute -inset-2 rounded-2xl bg-blue-400/20 blur-xl animate-pulse pointer-events-none" />
+      )}
       {/* Keycap Surface Texture/Sheen */}
       <div className="absolute inset-2 rounded-lg bg-gradient-to-br from-white/40 to-transparent pointer-events-none opacity-50" />
 

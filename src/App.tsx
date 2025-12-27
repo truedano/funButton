@@ -38,10 +38,21 @@ const App: React.FC = () => {
     const [previewPlayingId, setPreviewPlayingId] = useState<string | null>(null);
     const [previewProgress, setPreviewProgress] = useState(0);
 
+    // --- New State for Focus Editing ---
+    const [editingButtonId, setEditingButtonId] = useState<string | null>(null);
+
     // --- Derived State ---
     const activeToy = toys.find(t => t.id === activeToyId) || toys[0];
     const buttons = activeToy.buttons;
     const settings = activeToy.settings;
+    const editingButton = buttons.find(b => b.id === editingButtonId);
+
+    // Set default editing button
+    useEffect(() => {
+        if (isEditing && !editingButtonId && buttons.length > 0) {
+            setEditingButtonId(buttons[0].id);
+        }
+    }, [isEditing, buttons, editingButtonId]);
 
     // --- Refs ---
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -309,10 +320,22 @@ const App: React.FC = () => {
             audioUrl: null
         };
         updateToy(activeToyId, { buttons: [...buttons, newButton] });
+        setEditingButtonId(newId);
     };
 
     const removeButton = (id: string) => {
-        updateToy(activeToyId, { buttons: buttons.filter(b => b.id !== id) });
+        const index = buttons.findIndex(b => b.id === id);
+        const newButtons = buttons.filter(b => b.id !== id);
+        updateToy(activeToyId, { buttons: newButtons });
+
+        if (editingButtonId === id) {
+            if (newButtons.length > 0) {
+                const nextIndex = Math.min(index, newButtons.length - 1);
+                setEditingButtonId(newButtons[nextIndex].id);
+            } else {
+                setEditingButtonId(null);
+            }
+        }
     };
 
     const deleteAudio = (id: string) => {
@@ -561,29 +584,104 @@ const App: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Buttons Configuration */}
-                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
-                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">{t('buttons')}</h2>
-                            <div className="space-y-4">
-                                {buttons.map((btn) => (
-                                    <div key={btn.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
-                                        <div className="flex gap-3">
-                                            <div className="flex-1">
-                                                <textarea
-                                                    value={btn.text}
-                                                    onChange={(e) => updateButton(btn.id, { text: e.target.value })}
-                                                    placeholder={t('new_button_placeholder')}
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium resize-none focus:outline-none h-[60px]"
-                                                />
-                                            </div>
-                                            <button onClick={() => removeButton(btn.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={18} /></button>
+                        {/* Interactive Preview Container */}
+                        <div className="flex flex-col items-center py-4 bg-white/40 backdrop-blur-md rounded-3xl border border-white/50 shadow-inner overflow-hidden">
+                            <div className={`relative group perspective-1000 transform transition-all duration-300 scale-90 sm:scale-100 ${containerWidth}`}>
+                                <div className={`${caseStyles.outer} p-5 pb-7 rounded-[2.5rem] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15)] border-b-[8px] transition-all duration-300`}>
+                                    <div className={`grid ${gridCols} gap-4 ${caseStyles.inner} p-2 rounded-2xl transition-all duration-300`}>
+                                        {buttons.map((config) => (
+                                            <KeyButton
+                                                key={config.id}
+                                                config={config}
+                                                onClick={(c) => setEditingButtonId(c.id)}
+                                                isSelected={editingButtonId === config.id}
+                                                isActive={previewPlayingId === config.id}
+                                            />
+                                        ))}
+                                        {buttons.length === 0 && (
+                                            <div className="col-span-2 text-center p-8 text-gray-400 font-bold">{t('no_buttons')}</div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mt-4 flex gap-2">
+                                <button
+                                    onClick={addButton}
+                                    className="px-4 py-2 bg-white/80 hover:bg-white rounded-full text-xs font-bold text-gray-600 shadow-sm border border-gray-100 flex items-center gap-2 transition-all active:scale-95"
+                                >
+                                    <Plus size={14} /> {t('add_button')}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Focus Editor Panel */}
+                        {editingButton ? (
+                            <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-[0_10px_30px_-5px_rgba(0,0,0,0.05)] border border-white animate-in slide-in-from-bottom-2 duration-300">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className="w-4 h-8 rounded-full shadow-inner"
+                                            style={{
+                                                backgroundColor:
+                                                    editingButton.color === 'white' ? '#F0F4F8' :
+                                                        editingButton.color === 'yellow' ? '#F3E388' :
+                                                            editingButton.color === 'blue' ? '#A7C7E7' :
+                                                                editingButton.color === 'red' ? '#FFB7B2' :
+                                                                    editingButton.color === 'green' ? '#B4E4B4' :
+                                                                        editingButton.color === 'purple' ? '#D1C4E9' : '#FFCCBC'
+                                            }}
+                                        />
+                                        <div>
+                                            <h3 className="font-black text-gray-900 leading-none">{t('edit_button_title')}</h3>
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                                                {t('button_index', { current: buttons.indexOf(editingButton) + 1, total: buttons.length })}
+                                            </p>
                                         </div>
-                                        <div className="flex flex-wrap gap-2">
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            disabled={buttons.indexOf(editingButton) === 0}
+                                            onClick={() => setEditingButtonId(buttons[buttons.indexOf(editingButton) - 1].id)}
+                                            className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-gray-100 transition-colors"
+                                        >
+                                            <ChevronLeft size={18} />
+                                        </button>
+                                        <button
+                                            disabled={buttons.indexOf(editingButton) === buttons.length - 1}
+                                            onClick={() => setEditingButtonId(buttons[buttons.indexOf(editingButton) + 1].id)}
+                                            className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-gray-100 transition-colors"
+                                        >
+                                            <ChevronRight size={18} />
+                                        </button>
+                                        <div className="w-px h-4 bg-gray-200 mx-1" />
+                                        <button
+                                            onClick={() => removeButton(editingButton.id)}
+                                            className="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-500 transition-colors"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">{t('button_text_label')}</label>
+                                        <textarea
+                                            value={editingButton.text}
+                                            onChange={(e) => updateButton(editingButton.id, { text: e.target.value })}
+                                            placeholder={t('new_button_placeholder')}
+                                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold resize-none focus:outline-none focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all h-[100px] shadow-inner"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">{t('button_color_label')}</label>
+                                        <div className="flex flex-wrap gap-3 p-1">
                                             {ALL_COLORS.map((c) => (
                                                 <button
                                                     key={c}
-                                                    onClick={() => updateButton(btn.id, { color: c })}
-                                                    className={`w-6 h-6 rounded-full border transition-transform ${btn.color === c ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                                                    onClick={() => updateButton(editingButton.id, { color: c })}
+                                                    className={`w-10 h-10 rounded-2xl border-2 transition-all active:scale-90 ${editingButton.color === c ? 'border-gray-800 scale-110 shadow-md' : 'border-transparent shadow-sm'}`}
                                                     style={{
                                                         backgroundColor:
                                                             c === 'white' ? '#F0F4F8' :
@@ -595,31 +693,43 @@ const App: React.FC = () => {
                                                     }}
                                                 />
                                             ))}
-                                            <div className="flex-1" />
-                                            <div className="flex gap-1.5">
-                                                <button
-                                                    onClick={() => btn.audioUrl && toggleButtonPreview(btn.id, btn.audioUrl)}
-                                                    disabled={!btn.audioUrl}
-                                                    className={`relative p-2 rounded-lg overflow-hidden transition-all ${btn.audioUrl ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-300'}`}
-                                                    style={previewPlayingId === btn.id ? {
-                                                        background: `linear-gradient(to right, #bbf7d0 ${previewProgress}%, #f0fdf4 ${previewProgress}%)`
-                                                    } : {}}
-                                                >
-                                                    <div className="relative z-10">
-                                                        {previewPlayingId === btn.id ? <StopCircle size={14} /> : <Play size={14} />}
-                                                    </div>
-                                                </button>
-                                                <button onClick={() => recordingId === btn.id ? stopRecording() : startRecording(btn.id)} className={`px-2 py-1 rounded-lg text-xs font-bold ${recordingId === btn.id ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-700'}`}>{recordingId === btn.id ? t('stop') : t('record')}</button>
-                                                <label className="px-2 py-1 rounded-lg text-xs font-bold bg-gray-100 text-gray-700 cursor-pointer">{t('upload')}<input type="file" accept="audio/*" className="hidden" onChange={(e) => handleFileUpload(btn.id, e)} /></label>
-                                            </div>
                                         </div>
                                     </div>
-                                ))}
-                                <button onClick={addButton} className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-400 font-semibold flex items-center justify-center gap-2">
-                                    <Plus size={20} /> {t('add_button')}
-                                </button>
+
+                                    <div className="pt-4 flex items-center gap-3">
+                                        <button
+                                            onClick={() => editingButton.audioUrl && toggleButtonPreview(editingButton.id, editingButton.audioUrl)}
+                                            disabled={!editingButton.audioUrl}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-sm transition-all active:scale-[0.98] ${editingButton.audioUrl ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-gray-100 text-gray-300'}`}
+                                            style={previewPlayingId === editingButton.id ? {
+                                                background: `linear-gradient(to right, #22c55e ${previewProgress}%, #4ade80 ${previewProgress}%)`
+                                            } : {}}
+                                        >
+                                            {previewPlayingId === editingButton.id ? <StopCircle size={20} /> : <Play size={20} />}
+                                            {previewPlayingId === editingButton.id ? t('stop') : t('listen')}
+                                        </button>
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => recordingId === editingButton.id ? stopRecording() : startRecording(editingButton.id)}
+                                                className={`p-4 rounded-2xl font-black transition-all active:scale-[0.98] shadow-md ${recordingId === editingButton.id ? 'bg-red-500 text-white animate-pulse' : 'bg-white border border-gray-100 text-gray-700 hover:bg-gray-50'}`}
+                                            >
+                                                {recordingId === editingButton.id ? <StopCircle size={20} /> : <Mic size={20} />}
+                                            </button>
+
+                                            <label className="p-4 rounded-2xl bg-white border border-gray-100 text-gray-700 shadow-md hover:bg-gray-50 transition-all active:scale-[0.98] cursor-pointer">
+                                                <Upload size={20} />
+                                                <input type="file" accept="audio/*" className="hidden" onChange={(e) => handleFileUpload(editingButton.id, e)} />
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="text-center py-12 bg-white/40 backdrop-blur-md rounded-3xl border border-dashed border-gray-300 text-gray-400 font-bold">
+                                {t('select_button_hint')}
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className={`relative group perspective-1000 transform transition-transform duration-300 ${containerWidth} ${buttons.length <= 4 ? 'mt-12' : ''}`}>

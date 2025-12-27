@@ -44,5 +44,10 @@
     "btn_answer": "Answer Me!",
     "btn_eyes": "LOOK\nIN\nMY EYES",
     "btn_why": "TELL\nME\nWHY?",
-    "btn_ah": "Ah-Neng-Neng!"
+    "btn_ah": "Ah-Neng-Neng!",
+    "edit_button_title": "Edit Button",
+    "button_text_label": "Button Text",
+    "button_color_label": "Color",
+    "select_button_hint": "Select a button to edit",
+    "button_index": "{{current}} / {{total}}"
 }

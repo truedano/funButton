@@ -44,5 +44,10 @@
     "btn_answer": "回答我!",
     "btn_eyes": "LOOK\nIN\nMY EYES",
     "btn_why": "TELL\nME\nWHY?",
-    "btn_ah": "啊能能!"
+    "btn_ah": "啊能能!",
+    "edit_button_title": "按鈕編輯",
+    "button_text_label": "按鈕文字",
+    "button_color_label": "顏色",
+    "select_button_hint": "請選取按鈕進行編輯",
+    "button_index": "{{current}} / {{total}}"
 }
