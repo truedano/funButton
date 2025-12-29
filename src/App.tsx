@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { KEYPAD_CONFIG, APP_TITLE, APP_SUBTITLE } from './constants';
 import KeyButton from './components/KeyButton';
-import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database, CheckCircle, AlertCircle, Globe, Copy, Image as ImageIcon } from 'lucide-react';
+import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database, CheckCircle, AlertCircle, Globe, Copy, Image as ImageIcon, Type } from 'lucide-react';
 import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState } from './types';
 import { saveGlobalState, loadGlobalState, exportAllData, exportSingleToy, importData } from './utils/storage';
 import { playBuffer, decodeAudio, trimAndNormalize, audioBufferToWav, getAudioContext, ensureAudioContextStarted } from './utils/audio';
@@ -864,7 +864,29 @@ const App: React.FC = () => {
 
                                 <div className="space-y-6">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">{t('button_text_label')}</label>
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">{t('button_text_label')}</label>
+                                            <div className="flex items-center gap-2">
+                                                <div className="relative flex items-center gap-1 cursor-pointer bg-gray-100 px-2 py-1.5 rounded-xl hover:bg-gray-200 transition-colors">
+                                                    <Type size={14} className="transition-colors" style={{ color: editingButton.textColor || '#9CA3AF' }} />
+                                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('text_color_label')}</span>
+                                                    <input
+                                                        type="color"
+                                                        value={editingButton.textColor || '#000000'}
+                                                        onChange={(e) => updateButton(editingButton.id, { textColor: e.target.value })}
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                    />
+                                                </div>
+                                                {editingButton.textColor && (
+                                                    <button
+                                                        onClick={() => updateButton(editingButton.id, { textColor: null })}
+                                                        className="text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase tracking-wider px-2 py-1.5 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                                                    >
+                                                        {t('auto_color')}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
                                         <textarea
                                             value={editingButton.text}
                                             onChange={(e) => updateButton(editingButton.id, { text: e.target.value })}

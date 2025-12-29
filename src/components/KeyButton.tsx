@@ -52,7 +52,10 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
   return (
     <button
       className={`${baseStyles} ${getPredefinedClassNames(config.color)} ${shadowStyles} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${isSelected ? 'ring-4 ring-blue-400 ring-offset-4 scale-105' : ''} ${isActive ? 'animate-pulse' : ''}`}
-      style={!isPredefinedColor ? getDynamicStyles() : {}}
+      style={{
+        ...(!isPredefinedColor ? getDynamicStyles() : {}),
+        ...(config.textColor ? { color: config.textColor } : {})
+      }}
       onClick={() => !disabled && onClick(config)}
       onPointerDown={() => !disabled && playClickSound()}
       disabled={disabled}

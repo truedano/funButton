@@ -48,6 +48,7 @@ export const saveGlobalState = async (state: GlobalState) => {
                         color: btn.color,
                         audioBlob,
                         imageBlob,
+                        textColor: btn.textColor,
                     };
                 })
             );
@@ -77,6 +78,7 @@ export const loadGlobalState = async (): Promise<GlobalState | null> => {
             color: btn.color,
             audioUrl: btn.audioBlob ? URL.createObjectURL(btn.audioBlob) : null,
             imageUrl: btn.imageBlob ? URL.createObjectURL(btn.imageBlob) : null,
+            textColor: btn.textColor,
         })),
     }));
 
@@ -140,6 +142,7 @@ const processToyForExport = async (toy: ToyConfig) => {
                 color: btn.color,
                 audioBase64,
                 imageBase64,
+                textColor: btn.textColor,
             };
         })
     );
@@ -188,6 +191,7 @@ export const importData = async (jsonContent: string, currentToys: ToyConfig[]):
             color: btn.color || 'white',
             audioUrl: btn.audioBase64 ? URL.createObjectURL(base64ToBlob(btn.audioBase64)) : null,
             imageUrl: btn.imageBase64 ? URL.createObjectURL(base64ToBlob(btn.imageBase64)) : null,
+            textColor: btn.textColor || null,
         })),
     });
 

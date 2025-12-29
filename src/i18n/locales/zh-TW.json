@@ -52,5 +52,7 @@
     "button_index": "{{current}} / {{total}}",
     "duplicate": "複製按鈕",
     "button_image_label": "外觀圖片",
-    "remove_image": "移除圖片"
+    "remove_image": "移除圖片",
+    "text_color_label": "文色",
+    "auto_color": "自動"
 }

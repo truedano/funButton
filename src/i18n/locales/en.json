@@ -52,5 +52,7 @@
     "button_index": "{{current}} / {{total}}",
     "duplicate": "Duplicate Button",
     "button_image_label": "Appearance Image",
-    "remove_image": "Remove Image"
+    "remove_image": "Remove Image",
+    "text_color_label": "Text Clr",
+    "auto_color": "Auto"
 }
