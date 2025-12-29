@@ -7,6 +7,9 @@ import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState } from './type
 import { saveGlobalState, loadGlobalState, exportAllData, exportSingleToy, importData } from './utils/storage';
 import { playBuffer, decodeAudio, trimAndNormalize, audioBufferToWav, getAudioContext, ensureAudioContextStarted } from './utils/audio';
 import { getDarkerColor, getContrastingTextColor } from './utils/colorUtils';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragOverlay, TouchSensor, MouseSensor } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from '@dnd-kit/sortable';
+import SortableKeyButton from './components/SortableKeyButton';
 import pkg from '../package.json';
 
 const App: React.FC = () => {
@@ -41,6 +44,48 @@ const App: React.FC = () => {
 
     // --- New State for Focus Editing ---
     const [editingButtonId, setEditingButtonId] = useState<string | null>(null);
+    const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+    // --- Dnd Sensors ---
+    const sensors = useSensors(
+        useSensor(MouseSensor, {
+            activationConstraint: {
+                distance: 10,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 250,
+                tolerance: 5,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragStart = (event: any) => {
+        setActiveDragId(event.active.id);
+    };
+
+    const handleDragEnd = (event: any) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const oldIndex = buttons.findIndex((b) => b.id === active.id);
+            const newIndex = buttons.findIndex((b) => b.id === over.id);
+
+            if (oldIndex !== -1 && newIndex !== -1) {
+                updateToy(activeToyId, { buttons: arrayMove(buttons, oldIndex, newIndex) });
+            }
+        }
+
+        setActiveDragId(null);
+    };
+
+    const handleDragCancel = () => {
+        setActiveDragId(null);
+    };
 
     // --- Derived State ---
     const activeToy = toys.find(t => t.id === activeToyId) || toys[0];
@@ -646,40 +691,66 @@ const App: React.FC = () => {
 
                         {/* Interactive Preview Container */}
                         <div className="flex flex-col items-center py-4 bg-white/40 backdrop-blur-md rounded-3xl border border-white/50 shadow-inner overflow-hidden">
-                            <div className={`relative group perspective-1000 transform transition-all duration-300 scale-90 sm:scale-100 ${containerWidth}`}>
-                                <div
-                                    className={`${!caseStyles.isCustom ? caseStyles.outer : ''} p-5 pb-7 rounded-[2.5rem] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15)] border-b-[8px] transition-all duration-300`}
-                                    style={caseStyles.isCustom ? {
-                                        backgroundColor: caseStyles.color,
-                                        borderColor: caseStyles.borderColor,
-                                        color: caseStyles.textColor
-                                    } : {}}
-                                >
-                                    <h2
-                                        className={`mb-3 text-center font-black uppercase tracking-tighter text-sm ${!caseStyles.isCustom && caseStyles.text}`}
-                                        style={caseStyles.isCustom ? { color: caseStyles.textColor } : {}}
-                                    >
-                                        {activeToy.name}
-                                    </h2>
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragStart={handleDragStart}
+                                onDragEnd={handleDragEnd}
+                                onDragCancel={handleDragCancel}
+                            >
+                                <div className={`relative group perspective-1000 transform transition-all duration-300 scale-90 sm:scale-100 ${containerWidth}`}>
                                     <div
-                                        className={`grid ${gridCols} gap-4 ${!caseStyles.isCustom && caseStyles.inner} p-2 rounded-2xl transition-all duration-300`}
-                                        style={caseStyles.isCustom ? { backgroundColor: caseStyles.innerColor } : {}}
+                                        className={`${!caseStyles.isCustom ? caseStyles.outer : ''} p-5 pb-7 rounded-[2.5rem] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15)] border-b-[8px] transition-all duration-300`}
+                                        style={caseStyles.isCustom ? {
+                                            backgroundColor: caseStyles.color,
+                                            borderColor: caseStyles.borderColor,
+                                            color: caseStyles.textColor
+                                        } : {}}
                                     >
-                                        {buttons.map((config) => (
-                                            <KeyButton
-                                                key={config.id}
-                                                config={config}
-                                                onClick={(c) => setEditingButtonId(c.id)}
-                                                isSelected={editingButtonId === config.id}
-                                                isActive={previewPlayingId === config.id}
-                                            />
-                                        ))}
-                                        {buttons.length === 0 && (
-                                            <div className="col-span-2 text-center p-8 text-gray-400 font-bold">{t('no_buttons')}</div>
-                                        )}
+                                        <h2
+                                            className={`mb-3 text-center font-black uppercase tracking-tighter text-sm ${!caseStyles.isCustom && caseStyles.text}`}
+                                            style={caseStyles.isCustom ? { color: caseStyles.textColor } : {}}
+                                        >
+                                            {activeToy.name}
+                                        </h2>
+                                        <div
+                                            className={`grid ${gridCols} gap-4 ${!caseStyles.isCustom && caseStyles.inner} p-2 rounded-2xl transition-all duration-300`}
+                                            style={caseStyles.isCustom ? { backgroundColor: caseStyles.innerColor } : {}}
+                                        >
+                                            <SortableContext
+                                                items={buttons.map(b => b.id)}
+                                                strategy={rectSortingStrategy}
+                                            >
+                                                {buttons.map((config) => (
+                                                    <SortableKeyButton
+                                                        key={config.id}
+                                                        id={config.id}
+                                                        config={config}
+                                                        onClick={(c) => setEditingButtonId(c.id)}
+                                                        isSelected={editingButtonId === config.id}
+                                                        isActive={previewPlayingId === config.id}
+                                                        isEditing={isEditing}
+                                                    />
+                                                ))}
+                                            </SortableContext>
+                                            {buttons.length === 0 && (
+                                                <div className="col-span-2 text-center p-8 text-gray-400 font-bold">{t('no_buttons')}</div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                                <DragOverlay adjustScale={true} zIndex={1000}>
+                                    {activeDragId ? (
+                                        <div className="w-full h-full transform scale-105 cursor-grabbing">
+                                            <KeyButton
+                                                config={buttons.find(b => b.id === activeDragId)!}
+                                                onClick={() => { }}
+                                                isSelected={true}
+                                            />
+                                        </div>
+                                    ) : null}
+                                </DragOverlay>
+                            </DndContext>
                             <div className="mt-4 flex gap-2">
                                 <button
                                     onClick={addButton}
