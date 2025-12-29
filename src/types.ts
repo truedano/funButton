@@ -2,6 +2,7 @@ export type KeyColor = 'white' | 'yellow' | 'blue' | 'red' | 'green' | 'purple' 
 
 export interface AppSettings {
   caseColor: KeyColor;
+  titleColor?: string | null;
 }
 
 export interface KeyConfig {

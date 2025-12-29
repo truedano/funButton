@@ -731,6 +731,29 @@ const App: React.FC = () => {
                                     />
                                 </div>
                             </div>
+
+                            <div className="mt-4 flex items-center justify-between">
+                                <label className="text-xs text-gray-400 font-semibold">{t('title_color_label')}</label>
+                                <div className="flex items-center gap-2">
+                                    <div className="relative flex items-center gap-1 cursor-pointer bg-gray-100 px-2 py-1.5 rounded-lg hover:bg-gray-200 transition-colors">
+                                        <Type size={14} className="transition-colors" style={{ color: settings.titleColor || '#9CA3AF' }} />
+                                        <input
+                                            type="color"
+                                            value={settings.titleColor || '#000000'}
+                                            onChange={(e) => updateActiveSettings({ titleColor: e.target.value })}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        />
+                                    </div>
+                                    {settings.titleColor && (
+                                        <button
+                                            onClick={() => updateActiveSettings({ titleColor: null })}
+                                            className="text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase tracking-wider px-2 py-1.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                                        >
+                                            {t('auto_color')}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
                         {/* Interactive Preview Container */}
@@ -753,7 +776,10 @@ const App: React.FC = () => {
                                     >
                                         <h2
                                             className={`mb-3 text-center font-black uppercase tracking-tighter text-sm ${!caseStyles.isCustom && caseStyles.text}`}
-                                            style={caseStyles.isCustom ? { color: caseStyles.textColor } : {}}
+                                            style={{
+                                                ...(caseStyles.isCustom ? { color: caseStyles.textColor } : {}),
+                                                ...(settings.titleColor ? { color: settings.titleColor } : {})
+                                            }}
                                         >
                                             {activeToy.name}
                                         </h2>
@@ -1010,7 +1036,10 @@ const App: React.FC = () => {
                         >
                             <h2
                                 className={`mb-3 text-center font-black uppercase tracking-tighter text-sm ${!caseStyles.isCustom && caseStyles.text}`}
-                                style={caseStyles.isCustom ? { color: caseStyles.textColor } : {}}
+                                style={{
+                                    ...(caseStyles.isCustom ? { color: caseStyles.textColor } : {}),
+                                    ...(settings.titleColor ? { color: settings.titleColor } : {})
+                                }}
                             >
                                 {activeToy.name}
                             </h2>
@@ -1035,82 +1064,87 @@ const App: React.FC = () => {
                             <p className="text-gray-400 text-sm">{t('tap_to_play')}</p>
                         </div>
                     </div>
-                )}
+                )
+                }
                 <footer className="mt-12 text-gray-400 text-[10px] font-medium tracking-widest uppercase">
                     v{pkg.version}
                 </footer>
-            </main>
+            </main >
 
             {/* Recording Visualizer Overlay (Only shown when recording) */}
-            {recordingId && (
-                <div
-                    className="fixed inset-0 z-[110] flex items-center justify-center bg-black/5 backdrop-blur-[2px] cursor-pointer"
-                    onClick={() => stopRecording()}
-                >
-                    <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[3rem] shadow-2xl border border-white flex flex-col items-center gap-6 animate-in zoom-in-95 duration-200 pointer-events-auto">
-                        <div className="relative flex items-center justify-center h-24 w-48">
-                            {[...Array(12)].map((_, i) => (
-                                <div
-                                    key={i}
-                                    className="w-2 mx-0.5 rounded-full bg-red-500 transition-all duration-75"
-                                    style={{
-                                        height: `${Math.max(10, audioLevel * 100 * (0.5 + Math.random() * 0.5))}px`,
-                                        opacity: 0.3 + audioLevel * 0.7
-                                    }}
-                                />
-                            ))}
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse mb-2" />
-                            <span className="text-lg font-black text-gray-900 tracking-tight uppercase">{t('recording')}</span>
-                            <p className="text-[10px] text-gray-400 font-bold mt-2 uppercase tracking-widest">{t('tap_to_stop')}</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Pending Recording Preview Modal */}
-            {pendingRecording && (
-                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 w-full max-w-sm border border-white flex flex-col items-center animate-in zoom-in-95 duration-300">
-                        <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-                            <Mic className="w-10 h-10 text-blue-500" />
-                        </div>
-                        <h3 className="text-xl font-black text-gray-900 mb-2">{t('recording_preview')}</h3>
-                        <p className="text-gray-500 text-sm mb-8 text-center">{t('preview_hint')}</p>
-
-                        <div className="flex flex-col w-full gap-3">
-                            <button
-                                onClick={() => {
-                                    const audio = new Audio(pendingRecording.url);
-                                    audio.play();
-                                }}
-                                className="w-full py-4 bg-blue-50 text-blue-600 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors"
-                            >
-                                <Play size={20} /> {t('listen')}
-                            </button>
-
-                            <div className="grid grid-cols-2 gap-3 w-full">
-                                <button
-                                    onClick={() => setPendingRecording(null)}
-                                    className="py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-colors"
-                                >
-                                    {t('discard')}
-                                </button>
-                                <button
-                                    onClick={savePendingRecording}
-                                    disabled={isProcessing}
-                                    className="py-4 bg-gray-800 text-white rounded-2xl font-bold hover:bg-gray-900 transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
-                                >
-                                    {isProcessing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={20} />}
-                                    {isProcessing ? t('processing') : t('save_recording')}
-                                </button>
+            {
+                recordingId && (
+                    <div
+                        className="fixed inset-0 z-[110] flex items-center justify-center bg-black/5 backdrop-blur-[2px] cursor-pointer"
+                        onClick={() => stopRecording()}
+                    >
+                        <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[3rem] shadow-2xl border border-white flex flex-col items-center gap-6 animate-in zoom-in-95 duration-200 pointer-events-auto">
+                            <div className="relative flex items-center justify-center h-24 w-48">
+                                {[...Array(12)].map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className="w-2 mx-0.5 rounded-full bg-red-500 transition-all duration-75"
+                                        style={{
+                                            height: `${Math.max(10, audioLevel * 100 * (0.5 + Math.random() * 0.5))}px`,
+                                            opacity: 0.3 + audioLevel * 0.7
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse mb-2" />
+                                <span className="text-lg font-black text-gray-900 tracking-tight uppercase">{t('recording')}</span>
+                                <p className="text-[10px] text-gray-400 font-bold mt-2 uppercase tracking-widest">{t('tap_to_stop')}</p>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+
+            {/* Pending Recording Preview Modal */}
+            {
+                pendingRecording && (
+                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-md animate-in fade-in duration-300">
+                        <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 w-full max-w-sm border border-white flex flex-col items-center animate-in zoom-in-95 duration-300">
+                            <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
+                                <Mic className="w-10 h-10 text-blue-500" />
+                            </div>
+                            <h3 className="text-xl font-black text-gray-900 mb-2">{t('recording_preview')}</h3>
+                            <p className="text-gray-500 text-sm mb-8 text-center">{t('preview_hint')}</p>
+
+                            <div className="flex flex-col w-full gap-3">
+                                <button
+                                    onClick={() => {
+                                        const audio = new Audio(pendingRecording.url);
+                                        audio.play();
+                                    }}
+                                    className="w-full py-4 bg-blue-50 text-blue-600 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors"
+                                >
+                                    <Play size={20} /> {t('listen')}
+                                </button>
+
+                                <div className="grid grid-cols-2 gap-3 w-full">
+                                    <button
+                                        onClick={() => setPendingRecording(null)}
+                                        className="py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-colors"
+                                    >
+                                        {t('discard')}
+                                    </button>
+                                    <button
+                                        onClick={savePendingRecording}
+                                        disabled={isProcessing}
+                                        className="py-4 bg-gray-800 text-white rounded-2xl font-bold hover:bg-gray-900 transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+                                    >
+                                        {isProcessing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={20} />}
+                                        {isProcessing ? t('processing') : t('save_recording')}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     );
 };
 
