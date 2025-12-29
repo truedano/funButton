@@ -1019,13 +1019,11 @@ const App: React.FC = () => {
                         )}
                     </div>
                 ) : (
-                    <div className={`relative group perspective-1000 transform transition-transform duration-300 ${containerWidth} ${buttons.length <= 4 ? 'mt-12' : ''}`}>
-                        {buttons.length <= 4 && (
-                            <>
-                                <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-16 h-16 border-[6px] border-gray-300 rounded-full z-0 transform -translate-y-2" />
-                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-4 h-8 bg-gray-300 rounded-full z-0" />
-                            </>
-                        )}
+                    <div className={`relative group perspective-1000 transform transition-transform duration-300 ${containerWidth} mt-12`}>
+                        <>
+                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-16 h-16 border-[6px] border-gray-300 rounded-full z-0 transform -translate-y-2" />
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-4 h-8 bg-gray-300 rounded-full z-0" />
+                        </>
                         <div
                             className={`${!caseStyles.isCustom ? caseStyles.outer : ''} p-5 pb-7 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)] border-b-[8px] transition-all duration-300`}
                             style={caseStyles.isCustom ? {
