@@ -9,6 +9,7 @@ export interface KeyConfig {
   text: string;
   color: KeyColor;
   audioUrl?: string | null;
+  imageUrl?: string | null;
 }
 
 export interface ToyConfig {

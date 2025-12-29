@@ -61,11 +61,23 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
       {isSelected && (
         <div className="absolute -inset-2 rounded-2xl bg-blue-400/20 blur-xl animate-pulse pointer-events-none" />
       )}
+
+      {/* Image Texture (Top Layer Sticker) */}
+      {config.imageUrl && (
+        <div
+          className="absolute inset-[4px] rounded-[10px] bg-cover bg-center pointer-events-none opacity-90 mixing-blend-multiply"
+          style={{ backgroundImage: `url(${config.imageUrl})` }}
+        />
+      )}
+
       {/* Keycap Surface Texture/Sheen */}
-      <div className="absolute inset-2 rounded-lg bg-gradient-to-br from-white/40 to-transparent pointer-events-none opacity-50" />
+      <div className="absolute inset-2 rounded-lg bg-gradient-to-br from-white/40 to-transparent pointer-events-none opacity-50 z-[1]" />
 
       {/* Text Content */}
-      <div className="relative z-10 text-center font-bold text-lg sm:text-xl leading-tight whitespace-pre-line tracking-tight px-1 break-words w-full overflow-hidden">
+      <div
+        className="relative z-10 text-center font-bold text-lg sm:text-xl leading-tight whitespace-pre-line tracking-tight px-1 break-words w-full overflow-hidden"
+        style={config.imageUrl ? { textShadow: '0 1px 3px rgba(0,0,0,0.8), 0 0 2px rgba(255,255,255,0.5)' } : {}}
+      >
         {config.text}
       </div>
 

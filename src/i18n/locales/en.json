@@ -50,5 +50,7 @@
     "button_color_label": "Color",
     "select_button_hint": "Select a button to edit",
     "button_index": "{{current}} / {{total}}",
-    "duplicate": "Duplicate Button"
+    "duplicate": "Duplicate Button",
+    "button_image_label": "Appearance Image",
+    "remove_image": "Remove Image"
 }

@@ -50,5 +50,7 @@
     "button_color_label": "顏色",
     "select_button_hint": "請選取按鈕進行編輯",
     "button_index": "{{current}} / {{total}}",
-    "duplicate": "複製按鈕"
+    "duplicate": "複製按鈕",
+    "button_image_label": "外觀圖片",
+    "remove_image": "移除圖片"
 }

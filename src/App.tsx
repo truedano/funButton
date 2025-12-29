@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { KEYPAD_CONFIG, APP_TITLE, APP_SUBTITLE } from './constants';
 import KeyButton from './components/KeyButton';
-import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database, CheckCircle, AlertCircle, Globe, Copy } from 'lucide-react';
+import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database, CheckCircle, AlertCircle, Globe, Copy, Image as ImageIcon } from 'lucide-react';
 import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState } from './types';
 import { saveGlobalState, loadGlobalState, exportAllData, exportSingleToy, importData } from './utils/storage';
 import { playBuffer, decodeAudio, trimAndNormalize, audioBufferToWav, getAudioContext, ensureAudioContextStarted } from './utils/audio';
@@ -314,6 +314,50 @@ const App: React.FC = () => {
         if (!file) return;
         const audioUrl = URL.createObjectURL(file);
         updateButton(id, { audioUrl });
+    };
+
+    const handleImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Resize image to max 300x300
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > 300 || height > 300) {
+                    if (width > height) {
+                        height = Math.round((height *= 300 / width));
+                        width = 300;
+                    } else {
+                        width = Math.round((width *= 300 / height));
+                        height = 300;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const imageUrl = URL.createObjectURL(blob);
+                        updateButton(id, { imageUrl });
+                    }
+                }, 'image/jpeg', 0.85);
+            };
+            img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const removeImage = (id: string) => {
+        updateButton(id, { imageUrl: null });
     };
 
     // --- Data Management: Toys ---
@@ -830,8 +874,18 @@ const App: React.FC = () => {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">{t('button_color_label')}</label>
-                                        <div className="flex flex-wrap gap-3 p-1">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">{t('button_color_label')} & {t('button_image_label')}</label>
+                                            {editingButton.imageUrl && (
+                                                <button
+                                                    onClick={() => removeImage(editingButton.id)}
+                                                    className="text-[10px] text-red-400 hover:text-red-500 font-bold flex items-center gap-1 transition-colors"
+                                                >
+                                                    <X size={12} /> {t('remove_image')}
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-wrap gap-3 p-1 items-center">
                                             {ALL_COLORS.map((c) => (
                                                 <button
                                                     key={c}
@@ -862,6 +916,22 @@ const App: React.FC = () => {
                                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                                 />
                                             </div>
+
+                                            <div className="w-px h-8 bg-gray-200 mx-1" />
+
+                                            <label className={`w-10 h-10 rounded-2xl border-2 transition-all active:scale-90 flex items-center justify-center cursor-pointer overflow-hidden ${editingButton.imageUrl ? 'border-gray-800 scale-110 shadow-md bg-white' : 'border-dashed border-gray-300 hover:border-blue-400 hover:text-blue-500 bg-gray-50 text-gray-400'}`}>
+                                                {editingButton.imageUrl ? (
+                                                    <img src={editingButton.imageUrl} className="w-full h-full object-cover" alt="button texture" />
+                                                ) : (
+                                                    <ImageIcon size={18} />
+                                                )}
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={(e) => handleImageUpload(editingButton.id, e)}
+                                                />
+                                            </label>
                                         </div>
                                     </div>
 

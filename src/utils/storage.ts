@@ -3,8 +3,9 @@ import { KeyConfig, AppSettings, ToyConfig, GlobalState } from '../types';
 
 const DB_KEY = 'funbutton_multi_toy_v1';
 
-interface StoredKeyConfig extends Omit<KeyConfig, 'audioUrl'> {
+interface StoredKeyConfig extends Omit<KeyConfig, 'audioUrl' | 'imageUrl'> {
     audioBlob?: Blob | null;
+    imageBlob?: Blob | null;
 }
 
 interface StoredToyConfig extends Omit<ToyConfig, 'buttons'> {
@@ -27,14 +28,26 @@ export const saveGlobalState = async (state: GlobalState) => {
                             const response = await fetch(btn.audioUrl);
                             audioBlob = await response.blob();
                         } catch (error) {
-                            console.error(`Failed to fetch blob for button ${btn.id}`, error);
+                            console.error(`Failed to fetch audio blob for button ${btn.id}`, error);
                         }
                     }
+
+                    let imageBlob: Blob | null = null;
+                    if (btn.imageUrl) {
+                        try {
+                            const response = await fetch(btn.imageUrl);
+                            imageBlob = await response.blob();
+                        } catch (error) {
+                            console.error(`Failed to fetch image blob for button ${btn.id}`, error);
+                        }
+                    }
+
                     return {
                         id: btn.id,
                         text: btn.text,
                         color: btn.color,
                         audioBlob,
+                        imageBlob,
                     };
                 })
             );
@@ -63,6 +76,7 @@ export const loadGlobalState = async (): Promise<GlobalState | null> => {
             text: btn.text,
             color: btn.color,
             audioUrl: btn.audioBlob ? URL.createObjectURL(btn.audioBlob) : null,
+            imageUrl: btn.imageBlob ? URL.createObjectURL(btn.imageBlob) : null,
         })),
     }));
 
@@ -108,11 +122,24 @@ const processToyForExport = async (toy: ToyConfig) => {
                     console.error(`Export: Failed to convert audio for ${btn.id}`, e);
                 }
             }
+
+            let imageBase64: string | null = null;
+            if (btn.imageUrl) {
+                try {
+                    const response = await fetch(btn.imageUrl);
+                    const blob = await response.blob();
+                    imageBase64 = await blobToBase64(blob);
+                } catch (e) {
+                    console.error(`Export: Failed to convert image for ${btn.id}`, e);
+                }
+            }
+
             return {
                 id: btn.id,
                 text: btn.text,
                 color: btn.color,
                 audioBase64,
+                imageBase64,
             };
         })
     );
@@ -160,6 +187,7 @@ export const importData = async (jsonContent: string, currentToys: ToyConfig[]):
             text: btn.text || '',
             color: btn.color || 'white',
             audioUrl: btn.audioBase64 ? URL.createObjectURL(base64ToBlob(btn.audioBase64)) : null,
+            imageUrl: btn.imageBase64 ? URL.createObjectURL(base64ToBlob(btn.imageBase64)) : null,
         })),
     });
 
