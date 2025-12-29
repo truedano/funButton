@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { KEYPAD_CONFIG, APP_TITLE, APP_SUBTITLE } from './constants';
 import KeyButton from './components/KeyButton';
-import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database, CheckCircle, AlertCircle, Globe } from 'lucide-react';
+import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database, CheckCircle, AlertCircle, Globe, Copy } from 'lucide-react';
 import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState } from './types';
 import { saveGlobalState, loadGlobalState, exportAllData, exportSingleToy, importData } from './utils/storage';
 import { playBuffer, decodeAudio, trimAndNormalize, audioBufferToWav, getAudioContext, ensureAudioContextStarted } from './utils/audio';
@@ -337,6 +337,24 @@ const App: React.FC = () => {
                 setEditingButtonId(null);
             }
         }
+    };
+
+    const duplicateButton = (id: string) => {
+        const index = buttons.findIndex(b => b.id === id);
+        if (index === -1) return;
+
+        const originalButton = buttons[index];
+        const newId = `btn_${Date.now()}`;
+        const newButton: KeyConfig = {
+            ...originalButton,
+            id: newId
+        };
+
+        const newButtons = [...buttons];
+        newButtons.splice(index + 1, 0, newButton);
+
+        updateToy(activeToyId, { buttons: newButtons });
+        setEditingButtonId(newId);
     };
 
     const deleteAudio = (id: string) => {
@@ -713,6 +731,13 @@ const App: React.FC = () => {
                                             <ChevronRight size={18} />
                                         </button>
                                         <div className="w-px h-4 bg-gray-200 mx-1" />
+                                        <button
+                                            onClick={() => duplicateButton(editingButton.id)}
+                                            className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-50 text-blue-400 hover:bg-blue-100 hover:text-blue-500 transition-colors"
+                                            title={t('duplicate')}
+                                        >
+                                            <Copy size={16} />
+                                        </button>
                                         <button
                                             onClick={() => removeButton(editingButton.id)}
                                             className="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-500 transition-colors"

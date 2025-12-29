@@ -49,5 +49,6 @@
     "button_text_label": "Button Text",
     "button_color_label": "Color",
     "select_button_hint": "Select a button to edit",
-    "button_index": "{{current}} / {{total}}"
+    "button_index": "{{current}} / {{total}}",
+    "duplicate": "Duplicate Button"
 }
