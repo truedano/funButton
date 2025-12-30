@@ -772,6 +772,21 @@ const App: React.FC = () => {
                                     </button>
                                 </div>
                             </div>
+
+                            <div className="mt-4 flex flex-col gap-2">
+                                <label className="text-xs text-gray-400 font-semibold">{t('glow_type_label')}</label>
+                                <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-xl">
+                                    {(['none', 'backlit', 'bloom', 'surface', 'aura'] as const).map((type) => (
+                                        <button
+                                            key={type}
+                                            onClick={() => updateActiveSettings({ glowType: type })}
+                                            className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${((!settings.glowType && type === 'none') || settings.glowType === type) ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                        >
+                                            {t(`glow_${type}` as any)}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
 
                         {/* Interactive Preview Container */}
@@ -819,6 +834,7 @@ const App: React.FC = () => {
                                                         isActive={previewPlayingId === config.id}
                                                         isEditing={isEditing}
                                                         soundType={settings.soundType}
+                                                        glowType={settings.glowType}
                                                     />
                                                 ))}
                                             </SortableContext>
@@ -836,6 +852,7 @@ const App: React.FC = () => {
                                                 onClick={() => { }}
                                                 isSelected={true}
                                                 soundType={settings.soundType}
+                                                glowType={settings.glowType}
                                             />
                                         </div>
                                     ) : null}
@@ -1071,6 +1088,7 @@ const App: React.FC = () => {
                                         config={config}
                                         onClick={playSound}
                                         soundType={settings.soundType}
+                                        glowType={settings.glowType}
                                     />
                                 ))}
                                 {buttons.length === 0 && (

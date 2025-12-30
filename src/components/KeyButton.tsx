@@ -1,5 +1,5 @@
 import React from 'react';
-import { KeyConfig, SoundType } from '../types';
+import { KeyConfig, SoundType, GlowType } from '../types';
 import { MousePointerClick } from 'lucide-react';
 import { getDarkerColor, getContrastingTextColor, isValidColor } from '../utils/colorUtils';
 import { playClickSound, playKeyboardSound } from '../utils/audio';
@@ -11,9 +11,11 @@ interface KeyButtonProps {
   isSelected?: boolean;
   isActive?: boolean;
   soundType?: SoundType;
+  glowType?: GlowType;
 }
 
-const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSelected, isActive, soundType }) => {
+const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSelected, isActive, soundType, glowType = 'none' }) => {
+  const [isPressed, setIsPressed] = React.useState(false);
   const isPredefinedColor = ['white', 'yellow', 'blue', 'red', 'green', 'purple', 'orange'].includes(config.color);
 
   const getDynamicStyles = () => {
@@ -50,16 +52,64 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
   // 3D effect using box-shadow and translation - adjusted to work with real borders
   const shadowStyles = "shadow-[0_4px_0_rgba(0,0,0,0.1)] active:shadow-none active:translate-y-[4px]";
 
+  const getGlowColor = () => {
+    if (isPredefinedColor) {
+      switch (config.color) {
+        case 'yellow': return '#F3E388';
+        case 'blue': return '#A7C7E7';
+        case 'red': return '#FFB7B2';
+        case 'green': return '#B4E4B4';
+        case 'purple': return '#D1C4E9';
+        case 'orange': return '#FFCCBC';
+        default: return '#F0F4F8';
+      }
+    }
+    return config.color;
+  };
+
+  const glowColor = getGlowColor();
+
+  const getGlowStyles = () => {
+    if (disabled) return {};
+
+    switch (glowType) {
+      case 'backlit':
+        return {
+          // Inner core glow (white) + outer color glow
+          '--glow-shadow': `inset 0 0 15px white, inset 0 0 30px ${glowColor}, inset 0 0 50px ${glowColor}80`,
+        };
+      case 'bloom':
+        return {
+          '--glow-filter': `brightness(1.3) drop-shadow(0 0 15px ${glowColor}) drop-shadow(0 0 5px white)`,
+        };
+      case 'surface':
+        return {
+          '--glow-sheen': '1',
+        };
+      case 'aura':
+        return {
+          '--glow-aura': '1',
+        };
+      default:
+        return {};
+    }
+  };
+
   return (
     <button
       className={`${baseStyles} ${getPredefinedClassNames(config.color)} ${shadowStyles} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${isSelected ? 'ring-4 ring-blue-400 ring-offset-4 scale-105' : ''} ${isActive ? 'animate-pulse' : ''}`}
       style={{
         ...(!isPredefinedColor ? getDynamicStyles() : {}),
-        ...(config.textColor ? { color: config.textColor } : {})
+        ...(config.textColor ? { color: config.textColor } : {}),
+        ...(isPressed && !disabled ? getGlowStyles() : {}),
+        // Fix intensity: use box-shadow with multiple layers
+        ...(isPressed && !disabled && glowType === 'backlit' ? { boxShadow: `var(--glow-shadow, none)`, border: `1px solid rgba(255,255,255,0.5)` } : {}),
+        ...(isPressed && !disabled && glowType === 'bloom' ? { filter: `var(--glow-filter, none)` } : {})
       }}
       onClick={() => !disabled && onClick(config)}
       onPointerDown={() => {
         if (!disabled) {
+          setIsPressed(true);
           if (soundType === 'keyboard') {
             playKeyboardSound();
           } else {
@@ -67,8 +117,22 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
           }
         }
       }}
+      onPointerUp={() => setIsPressed(false)}
+      onPointerLeave={() => setIsPressed(false)}
       disabled={disabled}
     >
+      {/* Glow Aura (Bottom Layer) */}
+      {glowType === 'aura' && (
+        <div
+          className="absolute -inset-4 rounded-full blur-2xl opacity-0 transition-all duration-75 pointer-events-none"
+          style={{
+            backgroundColor: glowColor,
+            opacity: isPressed ? 0.7 : 0,
+            transform: isPressed ? 'scale(1.1)' : 'scale(0.9)'
+          }}
+        />
+      )}
+
       {/* Selection Glow */}
       {isSelected && (
         <div className="absolute -inset-2 rounded-2xl bg-blue-400/20 blur-xl animate-pulse pointer-events-none" />
@@ -82,8 +146,27 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
         />
       )}
 
+      {/* Surface Glow Overlay (Specific for Surface effect) */}
+      {glowType === 'surface' && (
+        <div
+          className="absolute inset-1 rounded-lg bg-white/40 blur-[2px] opacity-0 transition-opacity duration-75 z-[2] pointer-events-none"
+          style={{ opacity: isPressed ? 0.8 : 0 }}
+        />
+      )}
+
+      {/* Backlit Rim Glow (Specific for Backlit effect) */}
+      {glowType === 'backlit' && isPressed && (
+        <div className="absolute inset-0 rounded-xl border-2 border-white/80 blur-[1px] z-[2] pointer-events-none animate-pulse" />
+      )}
+
       {/* Keycap Surface Texture/Sheen */}
-      <div className="absolute inset-2 rounded-lg bg-gradient-to-br from-white/40 to-transparent pointer-events-none opacity-50 z-[1]" />
+      <div
+        className="absolute inset-2 rounded-lg bg-gradient-to-br from-white/80 to-transparent pointer-events-none transition-all duration-100 z-[1]"
+        style={{
+          opacity: isPressed ? (glowType === 'surface' ? 1 : 0.7) : 0.4,
+          filter: glowType === 'surface' && isPressed ? 'brightness(1.8) contrast(1.2)' : 'none'
+        }}
+      />
 
       {/* Text Content */}
       <div

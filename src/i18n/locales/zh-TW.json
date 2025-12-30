@@ -58,5 +58,11 @@
     "auto_color": "自動",
     "sound_type_label": "按鈕音效",
     "sound_default": "系統內建",
-    "sound_keyboard": "機械鍵盤"
+    "sound_keyboard": "機械鍵盤",
+    "glow_type_label": "發光特效",
+    "glow_none": "無",
+    "glow_backlit": "縫隙背光",
+    "glow_bloom": "光暈炸裂",
+    "glow_surface": "表面高光",
+    "glow_aura": "底部氛圍"
 }

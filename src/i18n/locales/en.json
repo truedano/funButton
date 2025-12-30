@@ -58,5 +58,11 @@
     "auto_color": "Auto",
     "sound_type_label": "Button Sound",
     "sound_default": "System Default",
-    "sound_keyboard": "Mechanical Keyboard"
+    "sound_keyboard": "Mechanical Keyboard",
+    "glow_type_label": "Glow Effect",
+    "glow_none": "None",
+    "glow_backlit": "Backlit",
+    "glow_bloom": "Bloom",
+    "glow_surface": "Surface",
+    "glow_aura": "Aura"
 }

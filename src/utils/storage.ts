@@ -184,7 +184,7 @@ export const importData = async (jsonContent: string, currentToys: ToyConfig[]):
     const restoreToy = (toy: any): ToyConfig => ({
         id: `toy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Always give new ID on import to avoid conflicts
         name: toy.name || 'Restored Toy',
-        settings: toy.settings || { caseColor: 'yellow', titleColor: null, soundType: 'default' },
+        settings: toy.settings || { caseColor: 'yellow', titleColor: null, soundType: 'default', glowType: 'none' },
         buttons: (toy.buttons || []).map((btn: any) => ({
             id: `btn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             text: btn.text || '',
