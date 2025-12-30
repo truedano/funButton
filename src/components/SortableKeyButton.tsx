@@ -2,7 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import KeyButton from './KeyButton';
-import { KeyConfig } from '../types';
+import { KeyConfig, SoundType } from '../types';
 
 interface SortableKeyButtonProps {
     id: string;
@@ -12,6 +12,7 @@ interface SortableKeyButtonProps {
     isActive: boolean;
     disabled?: boolean;
     isEditing: boolean;
+    soundType?: SoundType;
 }
 
 const SortableKeyButton: React.FC<SortableKeyButtonProps> = ({
@@ -21,7 +22,8 @@ const SortableKeyButton: React.FC<SortableKeyButtonProps> = ({
     isSelected,
     isActive,
     disabled,
-    isEditing
+    isEditing,
+    soundType
 }) => {
     const {
         attributes,
@@ -52,6 +54,7 @@ const SortableKeyButton: React.FC<SortableKeyButtonProps> = ({
                 isSelected={isSelected}
                 isActive={isActive}
                 disabled={disabled}
+                soundType={soundType}
             />
             {/* Overlay hint for long-press in edit mode? Maybe not needed if behavior is intuitive */}
         </div>

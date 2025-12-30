@@ -66,6 +66,67 @@ export const playClickSound = async () => {
     }
 };
 
+export const playKeyboardSound = async () => {
+    try {
+        await ensureAudioContextStarted();
+        const ctx = getAudioContext();
+        const t = ctx.currentTime;
+
+        // Part 1: High-frequency click (shorter, sharper)
+        const clickOsc = ctx.createOscillator();
+        const clickGain = ctx.createGain();
+        clickOsc.type = 'sine';
+        clickOsc.frequency.setValueAtTime(1500, t);
+        clickOsc.frequency.exponentialRampToValueAtTime(800, t + 0.01);
+        clickGain.gain.setValueAtTime(0.2, t);
+        clickGain.gain.exponentialRampToValueAtTime(0.01, t + 0.01);
+        clickOsc.connect(clickGain);
+        clickGain.connect(ctx.destination);
+        clickOsc.start(t);
+        clickOsc.stop(t + 0.01);
+
+        // Part 2: Mid-frequency "clack"
+        const clackOsc = ctx.createOscillator();
+        const clackGain = ctx.createGain();
+        clackOsc.type = 'triangle';
+        clackOsc.frequency.setValueAtTime(400, t);
+        clackOsc.frequency.exponentialRampToValueAtTime(200, t + 0.04);
+        clackGain.gain.setValueAtTime(0.15, t);
+        clackGain.gain.exponentialRampToValueAtTime(0.01, t + 0.04);
+        clackOsc.connect(clackGain);
+        clackGain.connect(ctx.destination);
+        clackOsc.start(t);
+        clackOsc.stop(t + 0.04);
+
+        // Part 3: Noise for mechanical friction feel
+        const noiseLength = ctx.sampleRate * 0.04;
+        const noiseBuffer = ctx.createBuffer(1, noiseLength, ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseLength; i++) {
+            output[i] = Math.random() * 2 - 1;
+        }
+        const noiseSource = ctx.createBufferSource();
+        noiseSource.buffer = noiseBuffer;
+        const noiseGain = ctx.createGain();
+        const lpFilter = ctx.createBiquadFilter();
+        lpFilter.type = 'lowpass';
+        lpFilter.frequency.setValueAtTime(2000, t);
+
+        noiseSource.connect(lpFilter);
+        lpFilter.connect(noiseGain);
+        noiseGain.connect(ctx.destination);
+
+        noiseGain.gain.setValueAtTime(0.04, t);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.04);
+
+        noiseSource.start(t);
+        noiseSource.stop(t + 0.04);
+
+    } catch (e) {
+        console.error("Audio context error:", e);
+    }
+};
+
 /**
  * Plays an AudioBuffer with low latency and overlapping support.
  */

@@ -1,8 +1,10 @@
 export type KeyColor = 'white' | 'yellow' | 'blue' | 'red' | 'green' | 'purple' | 'orange';
+export type SoundType = 'default' | 'keyboard';
 
 export interface AppSettings {
   caseColor: KeyColor;
   titleColor?: string | null;
+  soundType?: SoundType;
 }
 
 export interface KeyConfig {

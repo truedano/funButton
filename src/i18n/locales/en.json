@@ -55,5 +55,8 @@
     "remove_image": "Remove Image",
     "text_color_label": "Text Clr",
     "title_color_label": "Title Clr",
-    "auto_color": "Auto"
+    "auto_color": "Auto",
+    "sound_type_label": "Button Sound",
+    "sound_default": "System Default",
+    "sound_keyboard": "Mechanical Keyboard"
 }

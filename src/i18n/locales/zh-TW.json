@@ -55,5 +55,8 @@
     "remove_image": "移除圖片",
     "text_color_label": "文色",
     "title_color_label": "標色",
-    "auto_color": "自動"
+    "auto_color": "自動",
+    "sound_type_label": "按鈕音效",
+    "sound_default": "系統內建",
+    "sound_keyboard": "機械鍵盤"
 }

@@ -1,8 +1,8 @@
 import React from 'react';
-import { KeyConfig } from '../types';
+import { KeyConfig, SoundType } from '../types';
 import { MousePointerClick } from 'lucide-react';
 import { getDarkerColor, getContrastingTextColor, isValidColor } from '../utils/colorUtils';
-import { playClickSound } from '../utils/audio';
+import { playClickSound, playKeyboardSound } from '../utils/audio';
 
 interface KeyButtonProps {
   config: KeyConfig;
@@ -10,9 +10,10 @@ interface KeyButtonProps {
   disabled?: boolean;
   isSelected?: boolean;
   isActive?: boolean;
+  soundType?: SoundType;
 }
 
-const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSelected, isActive }) => {
+const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSelected, isActive, soundType }) => {
   const isPredefinedColor = ['white', 'yellow', 'blue', 'red', 'green', 'purple', 'orange'].includes(config.color);
 
   const getDynamicStyles = () => {
@@ -57,7 +58,15 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
         ...(config.textColor ? { color: config.textColor } : {})
       }}
       onClick={() => !disabled && onClick(config)}
-      onPointerDown={() => !disabled && playClickSound()}
+      onPointerDown={() => {
+        if (!disabled) {
+          if (soundType === 'keyboard') {
+            playKeyboardSound();
+          } else {
+            playClickSound();
+          }
+        }
+      }}
       disabled={disabled}
     >
       {/* Selection Glow */}

@@ -754,6 +754,24 @@ const App: React.FC = () => {
                                     )}
                                 </div>
                             </div>
+
+                            <div className="mt-4 flex items-center justify-between">
+                                <label className="text-xs text-gray-400 font-semibold">{t('sound_type_label')}</label>
+                                <div className="flex bg-gray-100 p-1 rounded-xl">
+                                    <button
+                                        onClick={() => updateActiveSettings({ soundType: 'default' })}
+                                        className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${(!settings.soundType || settings.soundType === 'default') ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                    >
+                                        {t('sound_default')}
+                                    </button>
+                                    <button
+                                        onClick={() => updateActiveSettings({ soundType: 'keyboard' })}
+                                        className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${settings.soundType === 'keyboard' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                    >
+                                        {t('sound_keyboard')}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Interactive Preview Container */}
@@ -800,6 +818,7 @@ const App: React.FC = () => {
                                                         isSelected={editingButtonId === config.id}
                                                         isActive={previewPlayingId === config.id}
                                                         isEditing={isEditing}
+                                                        soundType={settings.soundType}
                                                     />
                                                 ))}
                                             </SortableContext>
@@ -816,6 +835,7 @@ const App: React.FC = () => {
                                                 config={buttons.find(b => b.id === activeDragId)!}
                                                 onClick={() => { }}
                                                 isSelected={true}
+                                                soundType={settings.soundType}
                                             />
                                         </div>
                                     ) : null}
@@ -1046,7 +1066,12 @@ const App: React.FC = () => {
                                 style={caseStyles.isCustom ? { backgroundColor: caseStyles.innerColor } : {}}
                             >
                                 {buttons.map((config) => (
-                                    <KeyButton key={config.id} config={config} onClick={playSound} />
+                                    <KeyButton
+                                        key={config.id}
+                                        config={config}
+                                        onClick={playSound}
+                                        soundType={settings.soundType}
+                                    />
                                 ))}
                                 {buttons.length === 0 && (
                                     <div
