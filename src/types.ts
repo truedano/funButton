@@ -18,11 +18,23 @@ export interface KeyConfig {
   textColor?: string | null;
 }
 
+export interface MacroStep {
+  buttonId: string;
+  delay: number; // delay in ms AFTER this button press
+}
+
+export interface MacroConfig {
+  id: string;
+  name: string;
+  steps: MacroStep[];
+}
+
 export interface ToyConfig {
   id: string;
   name: string;
   settings: AppSettings;
   buttons: KeyConfig[];
+  macros?: MacroConfig[];
 }
 
 export interface GlobalState {

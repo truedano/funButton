@@ -2,10 +2,10 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { KEYPAD_CONFIG, APP_TITLE, APP_SUBTITLE } from './constants';
 import KeyButton from './components/KeyButton';
-import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database, CheckCircle, AlertCircle, Globe, Copy, Image as ImageIcon, Type } from 'lucide-react';
-import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState } from './types';
+import { Bot, Settings, Mic, Upload, Play, Trash2, Plus, X, Check, StopCircle, LayoutGrid, Edit3, ChevronRight, ChevronLeft, Download, Database, CheckCircle, AlertCircle, Globe, Copy, Image as ImageIcon, Type, Clock, ArrowRight, History } from 'lucide-react';
+import { KeyConfig, KeyColor, AppSettings, ToyConfig, GlobalState, MacroConfig, MacroStep } from './types';
 import { saveGlobalState, loadGlobalState, exportAllData, exportSingleToy, importData } from './utils/storage';
-import { playBuffer, decodeAudio, trimAndNormalize, audioBufferToWav, getAudioContext, ensureAudioContextStarted } from './utils/audio';
+import { playBuffer, decodeAudio, trimAndNormalize, audioBufferToWav, getAudioContext, ensureAudioContextStarted, playClickSound, playKeyboardSound } from './utils/audio';
 import { getDarkerColor, getContrastingTextColor } from './utils/colorUtils';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragOverlay, TouchSensor, MouseSensor } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from '@dnd-kit/sortable';
@@ -45,6 +45,13 @@ const App: React.FC = () => {
     // --- New State for Focus Editing ---
     const [editingButtonId, setEditingButtonId] = useState<string | null>(null);
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+    // --- New State for Macros ---
+    const [isRecordingMacro, setIsRecordingMacro] = useState(false);
+    const [recordingMacroSteps, setRecordingMacroSteps] = useState<MacroStep[]>([]);
+    const [lastMacroStepTime, setLastMacroStepTime] = useState<number | null>(null);
+    const [isPlayingMacro, setIsPlayingMacro] = useState(false);
+    const [macroNameInput, setMacroNameInput] = useState("");
 
     // --- Dnd Sensors ---
     const sensors = useSensors(
@@ -91,6 +98,7 @@ const App: React.FC = () => {
     const activeToy = toys.find(t => t.id === activeToyId) || toys[0];
     const buttons = activeToy.buttons;
     const settings = activeToy.settings;
+    const macros = activeToy.macros || [];
     const editingButton = buttons.find(b => b.id === editingButtonId);
 
     // Set default editing button
@@ -155,6 +163,16 @@ const App: React.FC = () => {
 
     // --- Audio Logic: Playback ---
     const playSound = useCallback((config: KeyConfig) => {
+        // Record Macro Logic
+        if (isRecordingMacro && !isPlayingMacro) {
+            const now = Date.now();
+            const delay = lastMacroStepTime ? now - lastMacroStepTime : 500;
+            // Limit delay to something reasonable, e.g. 5 seconds max if it's the first step
+            const cappedDelay = !lastMacroStepTime ? 500 : Math.min(8000, delay);
+            setRecordingMacroSteps(prev => [...prev, { buttonId: config.id, delay: cappedDelay }]);
+            setLastMacroStepTime(now);
+        }
+
         const buffer = audioBuffersRef.current[config.id];
         if (buffer) {
             playBuffer(buffer);
@@ -162,7 +180,7 @@ const App: React.FC = () => {
             const audio = new Audio(config.audioUrl);
             audio.play().catch(e => console.error("Playback failed:", e));
         }
-    }, []);
+    }, [isRecordingMacro, lastMacroStepTime, isPlayingMacro]);
 
     // --- Audio Logic: Recording ---
     const startRecording = async (id: string) => {
@@ -425,6 +443,69 @@ const App: React.FC = () => {
             } else {
                 setEditingButtonId(null);
             }
+        }
+    };
+
+    const handleCancelRecordingMacro = () => {
+        setIsRecordingMacro(false);
+        setRecordingMacroSteps([]);
+        setLastMacroStepTime(null);
+    };
+
+    const handleSaveMacro = () => {
+        if (recordingMacroSteps.length === 0) {
+            setIsRecordingMacro(false);
+            return;
+        }
+
+        const newMacro: MacroConfig = {
+            id: `macro_${Date.now()}`,
+            name: macroNameInput || `${t('add_macro')} ${macros.length + 1}`,
+            steps: [...recordingMacroSteps]
+        };
+
+        updateToy(activeToyId, { macros: [...macros, newMacro] });
+        setIsRecordingMacro(false);
+        setRecordingMacroSteps([]);
+        setMacroNameInput("");
+        setLastMacroStepTime(null);
+        showToast(t('save_success'), "success");
+    };
+
+    const removeMacro = (id: string) => {
+        const newMacros = macros.filter(m => m.id !== id);
+        updateToy(activeToyId, { macros: newMacros });
+    };
+
+    const playMacro = async (macro: MacroConfig) => {
+        if (isPlayingMacro) return;
+        setIsPlayingMacro(true);
+
+        try {
+            for (const step of macro.steps) {
+                // Always fetch the freshest state of buttons to ensure we don't use stale closure data
+                const currentButtons = toys.find(t => t.id === activeToyId)?.buttons || [];
+                const button = currentButtons.find(b => b.id === step.buttonId);
+
+                if (button) {
+                    setPreviewPlayingId(button.id);
+
+                    // Play mechanical sound based on current toy settings
+                    if (settings.soundType === 'keyboard') {
+                        playKeyboardSound();
+                    } else {
+                        playClickSound();
+                    }
+
+                    playSound(button);
+                    await new Promise(resolve => setTimeout(resolve, Math.max(50, step.delay)));
+                } else {
+                    console.warn(`Macro step skipped: Button ${step.buttonId} not found`);
+                }
+            }
+        } finally {
+            setIsPlayingMacro(false);
+            setPreviewPlayingId(null);
         }
     };
 
@@ -789,6 +870,81 @@ const App: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* Macro Settings */}
+                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-white/50">
+                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <History size={16} /> {t('manage_macros')}
+                            </h2>
+
+                            <div className="space-y-3">
+                                {macros.map(macro => (
+                                    <div key={macro.id} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center justify-between shadow-sm">
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-bold text-gray-700">{macro.name}</span>
+                                            <span className="text-[10px] text-gray-400">{t('steps_count', { count: macro.steps.length })}</span>
+                                        </div>
+                                        <div className="flex gap-1">
+                                            <button
+                                                onClick={() => playMacro(macro)}
+                                                disabled={isPlayingMacro}
+                                                className={`p-1.5 rounded-lg transition-colors ${isPlayingMacro ? 'text-gray-300' : 'text-blue-500 hover:bg-blue-50'}`}
+                                                title={t('play_macro')}
+                                            >
+                                                <Play size={16} fill={isPlayingMacro ? 'none' : 'currentColor'} />
+                                            </button>
+                                            <button
+                                                onClick={() => removeMacro(macro.id)}
+                                                className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                title={t('delete_macro')}
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {isRecordingMacro ? (
+                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 animate-in fade-in zoom-in-95 duration-200">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                                                <span className="text-xs font-bold text-blue-700">{t('macro_recording')}</span>
+                                            </div>
+                                            <span className="text-[10px] font-bold text-blue-400">{t('steps_count', { count: recordingMacroSteps.length })}</span>
+                                        </div>
+                                        <input
+                                            className="w-full bg-white border border-blue-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 mb-3"
+                                            placeholder={t('macro_name')}
+                                            value={macroNameInput}
+                                            onChange={(e) => setMacroNameInput(e.target.value)}
+                                            autoFocus
+                                        />
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={handleSaveMacro}
+                                                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm"
+                                            >
+                                                {t('save')}
+                                            </button>
+                                            <button
+                                                onClick={handleCancelRecordingMacro}
+                                                className="px-4 py-2 bg-white text-gray-500 rounded-lg text-xs font-bold border border-gray-200 hover:bg-gray-50 transition-colors"
+                                            >
+                                                {t('discard')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setIsRecordingMacro(true)}
+                                        className="w-full py-2 border border-dashed border-gray-300 rounded-xl text-gray-400 text-sm font-semibold flex items-center justify-center gap-2 hover:border-blue-400 hover:text-blue-500 transition-colors bg-white/40"
+                                    >
+                                        <Mic size={16} /> {t('record_macro')}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
                         {/* Interactive Preview Container */}
                         <div className="flex flex-col items-center py-4 bg-white/40 backdrop-blur-md rounded-3xl border border-white/50 shadow-inner overflow-hidden">
                             <DndContext
@@ -829,7 +985,10 @@ const App: React.FC = () => {
                                                         key={config.id}
                                                         id={config.id}
                                                         config={config}
-                                                        onClick={(c) => setEditingButtonId(c.id)}
+                                                        onClick={(c) => {
+                                                            setEditingButtonId(c.id);
+                                                            playSound(c);
+                                                        }}
                                                         isSelected={editingButtonId === config.id}
                                                         isActive={previewPlayingId === config.id}
                                                         isEditing={isEditing}
@@ -1056,57 +1215,76 @@ const App: React.FC = () => {
                         )}
                     </div>
                 ) : (
-                    <div className={`relative group perspective-1000 transform transition-transform duration-300 ${containerWidth} mt-12`}>
-                        <>
-                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-16 h-16 border-[6px] border-gray-300 rounded-full z-0 transform -translate-y-2" />
-                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-4 h-8 bg-gray-300 rounded-full z-0" />
-                        </>
-                        <div
-                            className={`${!caseStyles.isCustom ? caseStyles.outer : ''} p-5 pb-7 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)] border-b-[8px] transition-all duration-300`}
-                            style={caseStyles.isCustom ? {
-                                backgroundColor: caseStyles.color,
-                                borderColor: caseStyles.borderColor,
-                                color: caseStyles.textColor
-                            } : {}}
-                        >
-                            <h2
-                                className={`mb-3 text-center font-black uppercase tracking-tighter text-sm ${!caseStyles.isCustom && caseStyles.text}`}
-                                style={{
-                                    ...(caseStyles.isCustom ? { color: caseStyles.textColor } : {}),
-                                    ...(settings.titleColor ? { color: settings.titleColor } : {})
-                                }}
-                            >
-                                {activeToy.name}
-                            </h2>
+                    <div className="w-full flex flex-col items-center">
+                        {/* Macros Playback Bar */}
+                        {macros.length > 0 && (
+                            <div className="w-full max-w-md px-4 mb-8 flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth animate-in fade-in slide-in-from-top-2 duration-500">
+                                <div className="flex items-center gap-1.5 p-2 bg-white/60 backdrop-blur-md rounded-2xl border border-white/50 shadow-sm min-w-max">
+                                    <History size={14} className="text-gray-400 ml-1 mr-1" />
+                                    {macros.map(macro => (
+                                        <button
+                                            key={macro.id}
+                                            onClick={() => playMacro(macro)}
+                                            disabled={isPlayingMacro}
+                                            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap active:scale-95 ${isPlayingMacro ? 'bg-gray-100 text-gray-300' : 'bg-white text-gray-700 hover:bg-blue-500 hover:text-white shadow-sm border border-gray-50'}`}
+                                        >
+                                            <Play size={10} fill={isPlayingMacro ? 'none' : 'currentColor'} />
+                                            {macro.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className={`relative group perspective-1000 transform transition-transform duration-300 ${containerWidth} mt-4`}>
+                            <>
+                                <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-16 h-16 border-[6px] border-gray-300 rounded-full z-0 transform -translate-y-2" />
+                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-4 h-8 bg-gray-300 rounded-full z-0" />
+                            </>
                             <div
-                                className={`grid ${gridCols} gap-4 ${!caseStyles.isCustom && caseStyles.inner} p-2 rounded-2xl transition-all duration-300`}
-                                style={caseStyles.isCustom ? { backgroundColor: caseStyles.innerColor } : {}}
+                                className={`${!caseStyles.isCustom ? caseStyles.outer : ''} p-5 pb-7 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)] border-b-[8px] transition-all duration-300`}
+                                style={caseStyles.isCustom ? {
+                                    backgroundColor: caseStyles.color,
+                                    borderColor: caseStyles.borderColor,
+                                    color: caseStyles.textColor
+                                } : {}}
                             >
-                                {buttons.map((config) => (
-                                    <KeyButton
-                                        key={config.id}
-                                        config={config}
-                                        onClick={playSound}
-                                        soundType={settings.soundType}
-                                        glowType={settings.glowType}
-                                    />
-                                ))}
-                                {buttons.length === 0 && (
-                                    <div
-                                        className={`col-span-2 text-center p-8 ${!caseStyles.isCustom && caseStyles.text} font-bold`}
-                                        style={caseStyles.isCustom ? { color: caseStyles.textColor } : {}}
-                                    >
-                                        {t('no_buttons')}
-                                    </div>
-                                )}
+                                <h2
+                                    className={`mb-3 text-center font-black uppercase tracking-tighter text-sm ${!caseStyles.isCustom && caseStyles.text}`}
+                                    style={{
+                                        ...(caseStyles.isCustom ? { color: caseStyles.textColor } : {}),
+                                        ...(settings.titleColor ? { color: settings.titleColor } : {})
+                                    }}
+                                >
+                                    {activeToy.name}
+                                </h2>
+                                <div
+                                    className={`grid ${gridCols} gap-4 ${!caseStyles.isCustom && caseStyles.inner} p-2 rounded-2xl transition-all duration-300`}
+                                    style={caseStyles.isCustom ? { backgroundColor: caseStyles.innerColor } : {}}
+                                >
+                                    {buttons.map((config) => (
+                                        <KeyButton
+                                            key={config.id}
+                                            config={config}
+                                            onClick={playSound}
+                                            isActive={previewPlayingId === config.id}
+                                            soundType={settings.soundType}
+                                            glowType={settings.glowType}
+                                        />
+                                    ))}
+                                    {buttons.length === 0 && (
+                                        <div
+                                            className={`col-span-2 text-center p-8 ${!caseStyles.isCustom && caseStyles.text} font-bold`}
+                                            style={caseStyles.isCustom ? { color: caseStyles.textColor } : {}}
+                                        >
+                                            {t('no_buttons')}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                        <div className="mt-8 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                            <p className="text-gray-400 text-sm">{t('tap_to_play')}</p>
-                        </div>
                     </div>
-                )
-                }
+                )}
                 <footer className="mt-12 text-gray-400 text-[10px] font-medium tracking-widest uppercase">
                     v{pkg.version}
                 </footer>

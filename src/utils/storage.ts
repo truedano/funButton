@@ -55,6 +55,7 @@ export const saveGlobalState = async (state: GlobalState) => {
             return {
                 ...toy,
                 buttons: storedButtons,
+                macros: toy.macros || [],
             };
         })
     );
@@ -80,6 +81,7 @@ export const loadGlobalState = async (): Promise<GlobalState | null> => {
             imageUrl: btn.imageBlob ? URL.createObjectURL(btn.imageBlob) : null,
             textColor: btn.textColor,
         })),
+        macros: toy.macros || [],
     }));
 
     return {
@@ -101,6 +103,7 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
 
 const base64ToBlob = (base64: string): Blob => {
     const parts = base64.split(';base64,');
+    if (parts.length < 2) return new Blob([], { type: 'audio/webm' });
     const contentType = parts[0].split(':')[1] || 'audio/webm';
     const raw = window.atob(parts[1]);
     const rawLength = raw.length;
@@ -146,7 +149,11 @@ const processToyForExport = async (toy: ToyConfig) => {
             };
         })
     );
-    return { ...toy, buttons };
+    return {
+        ...toy,
+        buttons,
+        macros: toy.macros || []
+    };
 };
 
 export const exportAllData = async (state: GlobalState): Promise<string> => {
@@ -155,7 +162,7 @@ export const exportAllData = async (state: GlobalState): Promise<string> => {
     );
 
     const backupData = {
-        version: '1.0',
+        version: '1.1',
         type: 'full_backup',
         timestamp: new Date().toISOString(),
         activeToyId: state.activeToyId,
@@ -169,7 +176,7 @@ export const exportSingleToy = async (toy: ToyConfig): Promise<string> => {
     const processedToy = await processToyForExport(toy);
 
     const backupData = {
-        version: '1.0',
+        version: '1.1',
         type: 'single_toy',
         timestamp: new Date().toISOString(),
         toy: processedToy,
@@ -181,19 +188,38 @@ export const exportSingleToy = async (toy: ToyConfig): Promise<string> => {
 export const importData = async (jsonContent: string, currentToys: ToyConfig[]): Promise<GlobalState> => {
     const data = JSON.parse(jsonContent);
 
-    const restoreToy = (toy: any): ToyConfig => ({
-        id: `toy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Always give new ID on import to avoid conflicts
-        name: toy.name || 'Restored Toy',
-        settings: toy.settings || { caseColor: 'yellow', titleColor: null, soundType: 'default', glowType: 'none' },
-        buttons: (toy.buttons || []).map((btn: any) => ({
-            id: `btn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            text: btn.text || '',
-            color: btn.color || 'white',
-            audioUrl: btn.audioBase64 ? URL.createObjectURL(base64ToBlob(btn.audioBase64)) : null,
-            imageUrl: btn.imageBase64 ? URL.createObjectURL(base64ToBlob(btn.imageBase64)) : null,
-            textColor: btn.textColor || null,
-        })),
-    });
+    const restoreToy = (toy: any): ToyConfig => {
+        const idMap: Record<string, string> = {};
+        const buttons = (toy.buttons || []).map((btn: any) => {
+            const newId = `btn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            idMap[btn.id] = newId;
+            return {
+                id: newId,
+                text: btn.text || '',
+                color: btn.color || 'white',
+                audioUrl: btn.audioBase64 ? URL.createObjectURL(base64ToBlob(btn.audioBase64)) : null,
+                imageUrl: btn.imageBase64 ? URL.createObjectURL(base64ToBlob(btn.imageBase64)) : null,
+                textColor: btn.textColor || null,
+            };
+        });
+
+        const macros = (toy.macros || []).map((macro: any) => ({
+            ...macro,
+            id: `macro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            steps: (macro.steps || []).map((step: any) => ({
+                ...step,
+                buttonId: idMap[step.buttonId] || step.buttonId
+            }))
+        }));
+
+        return {
+            id: `toy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: toy.name || 'Restored Toy',
+            settings: toy.settings || { caseColor: 'yellow', titleColor: null, soundType: 'default', glowType: 'none' },
+            buttons,
+            macros,
+        };
+    };
 
     if (data.type === 'single_toy' && data.toy) {
         const newToy = restoreToy(data.toy);

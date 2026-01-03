@@ -64,5 +64,16 @@
     "glow_backlit": "Backlit",
     "glow_bloom": "Bloom",
     "glow_surface": "Surface",
-    "glow_aura": "Aura"
+    "glow_aura": "Aura",
+    "manage_macros": "Manage Macros",
+    "add_macro": "Add Macro",
+    "record_macro": "Record Macro",
+    "stop_recording_macro": "Stop Recording",
+    "macro_name": "Macro Name",
+    "play_macro": "Play Macro",
+    "delete_macro": "Delete Macro",
+    "macro_empty": "No steps in this macro",
+    "macro_recording": "Recording Macro...",
+    "btn_not_found": "Button not found",
+    "steps_count": "{{count}} steps"
 }

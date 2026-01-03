@@ -97,14 +97,14 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
 
   return (
     <button
-      className={`${baseStyles} ${getPredefinedClassNames(config.color)} ${shadowStyles} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${isSelected ? 'ring-4 ring-blue-400 ring-offset-4 scale-105' : ''} ${isActive ? 'animate-pulse' : ''}`}
+      className={`${baseStyles} ${getPredefinedClassNames(config.color)} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${isSelected ? 'ring-4 ring-blue-400 ring-offset-4 scale-105' : ''} ${isActive ? 'translate-y-[4px] shadow-none ring-2 ring-white/50' : shadowStyles}`}
       style={{
         ...(!isPredefinedColor ? getDynamicStyles() : {}),
         ...(config.textColor ? { color: config.textColor } : {}),
-        ...(isPressed && !disabled ? getGlowStyles() : {}),
+        ...((isPressed || isActive) && !disabled ? getGlowStyles() : {}),
         // Fix intensity: use box-shadow with multiple layers
-        ...(isPressed && !disabled && glowType === 'backlit' ? { boxShadow: `var(--glow-shadow, none)`, border: `1px solid rgba(255,255,255,0.5)` } : {}),
-        ...(isPressed && !disabled && glowType === 'bloom' ? { filter: `var(--glow-filter, none)` } : {})
+        ...((isPressed || isActive) && !disabled && glowType === 'backlit' ? { boxShadow: `var(--glow-shadow, none)`, border: `1px solid rgba(255,255,255,0.5)` } : {}),
+        ...((isPressed || isActive) && !disabled && glowType === 'bloom' ? { filter: `var(--glow-filter, none)` } : {})
       }}
       onClick={() => !disabled && onClick(config)}
       onPointerDown={() => {
@@ -127,8 +127,8 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
           className="absolute -inset-4 rounded-full blur-2xl opacity-0 transition-all duration-75 pointer-events-none"
           style={{
             backgroundColor: glowColor,
-            opacity: isPressed ? 0.7 : 0,
-            transform: isPressed ? 'scale(1.1)' : 'scale(0.9)'
+            opacity: (isPressed || isActive) ? 0.7 : 0,
+            transform: (isPressed || isActive) ? 'scale(1.1)' : 'scale(0.9)'
           }}
         />
       )}
@@ -150,12 +150,12 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
       {glowType === 'surface' && (
         <div
           className="absolute inset-1 rounded-lg bg-white/40 blur-[2px] opacity-0 transition-opacity duration-75 z-[2] pointer-events-none"
-          style={{ opacity: isPressed ? 0.8 : 0 }}
+          style={{ opacity: (isPressed || isActive) ? 0.8 : 0 }}
         />
       )}
 
       {/* Backlit Rim Glow (Specific for Backlit effect) */}
-      {glowType === 'backlit' && isPressed && (
+      {glowType === 'backlit' && (isPressed || isActive) && (
         <div className="absolute inset-0 rounded-xl border-2 border-white/80 blur-[1px] z-[2] pointer-events-none animate-pulse" />
       )}
 
@@ -163,8 +163,8 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
       <div
         className="absolute inset-2 rounded-lg bg-gradient-to-br from-white/80 to-transparent pointer-events-none transition-all duration-100 z-[1]"
         style={{
-          opacity: isPressed ? (glowType === 'surface' ? 1 : 0.7) : 0.4,
-          filter: glowType === 'surface' && isPressed ? 'brightness(1.8) contrast(1.2)' : 'none'
+          opacity: (isPressed || isActive) ? (glowType === 'surface' ? 1 : 0.7) : 0.4,
+          filter: glowType === 'surface' && (isPressed || isActive) ? 'brightness(1.8) contrast(1.2)' : 'none'
         }}
       />
 

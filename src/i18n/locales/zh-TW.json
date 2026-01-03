@@ -64,5 +64,16 @@
     "glow_backlit": "縫隙背光",
     "glow_bloom": "光暈炸裂",
     "glow_surface": "表面高光",
-    "glow_aura": "底部氛圍"
+    "glow_aura": "底部氛圍",
+    "manage_macros": "管理巨集",
+    "add_macro": "新增巨集",
+    "record_macro": "錄製巨集",
+    "stop_recording_macro": "停止錄製",
+    "macro_name": "巨集名稱",
+    "play_macro": "播放巨集",
+    "delete_macro": "刪除巨集",
+    "macro_empty": "此巨集目前沒有步驟",
+    "macro_recording": "巨集錄製中...",
+    "btn_not_found": "找不到按鈕",
+    "steps_count": "{{count}} 個步驟"
 }
