@@ -166,10 +166,19 @@ const App: React.FC = () => {
         // Record Macro Logic
         if (isRecordingMacro && !isPlayingMacro) {
             const now = Date.now();
-            const delay = lastMacroStepTime ? now - lastMacroStepTime : 500;
-            // Limit delay to something reasonable, e.g. 5 seconds max if it's the first step
-            const cappedDelay = !lastMacroStepTime ? 500 : Math.min(8000, delay);
-            setRecordingMacroSteps(prev => [...prev, { buttonId: config.id, delay: cappedDelay }]);
+            setRecordingMacroSteps(prev => {
+                if (prev.length > 0 && lastMacroStepTime) {
+                    // Update the PREVIOUS step's delay to the actual time elapsed since then
+                    const updatedSteps = [...prev];
+                    const lastIndex = updatedSteps.length - 1;
+                    const elapsed = now - lastMacroStepTime;
+                    // Cap delay at 10 seconds for sanity
+                    updatedSteps[lastIndex].delay = Math.min(10000, elapsed);
+                    return [...updatedSteps, { buttonId: config.id, delay: 500 }]; // New step starts with default 500ms
+                }
+                // First step
+                return [{ buttonId: config.id, delay: 500 }];
+            });
             setLastMacroStepTime(now);
         }
 
@@ -444,6 +453,13 @@ const App: React.FC = () => {
                 setEditingButtonId(null);
             }
         }
+    };
+
+    const startMacroRecording = () => {
+        setIsRecordingMacro(true);
+        setRecordingMacroSteps([]);
+        setLastMacroStepTime(Date.now());
+        setMacroNameInput("");
     };
 
     const handleCancelRecordingMacro = () => {
@@ -936,7 +952,7 @@ const App: React.FC = () => {
                                     </div>
                                 ) : (
                                     <button
-                                        onClick={() => setIsRecordingMacro(true)}
+                                        onClick={startMacroRecording}
                                         className="w-full py-2 border border-dashed border-gray-300 rounded-xl text-gray-400 text-sm font-semibold flex items-center justify-center gap-2 hover:border-blue-400 hover:text-blue-500 transition-colors bg-white/40"
                                     >
                                         <Mic size={16} /> {t('record_macro')}
