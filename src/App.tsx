@@ -679,7 +679,10 @@ const App: React.FC = () => {
                         <div className="inline-flex items-center justify-center p-3 bg-white rounded-full shadow-md mb-2">
                             <Bot className="w-8 h-8 text-yellow-500" />
                         </div>
-                        <h1 className="text-2xl font-black tracking-tight text-gray-900 leading-none">{t('app_title')}</h1>
+                        <h1 className="text-2xl font-black tracking-tight text-gray-900 leading-none flex items-center gap-2">
+                            {t('app_title')}
+                            <span className="text-[10px] font-bold bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-md self-end mb-0.5">v{pkg.version}</span>
+                        </h1>
                         <p className="text-gray-500 font-medium text-sm">{t('app_subtitle')}</p>
                     </div>
                     <div className="flex items-center gap-2">
