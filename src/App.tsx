@@ -116,6 +116,8 @@ const App: React.FC = () => {
     const analyserRef = useRef<AnalyserNode | null>(null);
     const animationFrameRef = useRef<number | null>(null);
     const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+    const playbackAnimationFrameRef = useRef<number | null>(null);
+    const previewPlayingIdRef = useRef<string | null>(null);
 
     // --- Persistence ---
     useEffect(() => {
@@ -161,8 +163,64 @@ const App: React.FC = () => {
         syncAudio();
     }, [buttons, isLoaded]);
 
+    // --- Edit Mode Preview Logic ---
+    const toggleButtonPreview = useCallback((id: string, url: string) => {
+        if (playbackAnimationFrameRef.current) {
+            cancelAnimationFrame(playbackAnimationFrameRef.current);
+            playbackAnimationFrameRef.current = null;
+        }
+
+        if (previewPlayingIdRef.current === id) {
+            if (previewAudioRef.current) {
+                previewAudioRef.current.pause();
+                previewAudioRef.current = null;
+            }
+            setPreviewPlayingId(null);
+            previewPlayingIdRef.current = null;
+            setPreviewProgress(0);
+        } else {
+            // Stop any existing preview
+            if (previewAudioRef.current) {
+                previewAudioRef.current.pause();
+            }
+
+            const audio = new Audio(url);
+            previewAudioRef.current = audio;
+            setPreviewPlayingId(id);
+            previewPlayingIdRef.current = id;
+            setPreviewProgress(0);
+
+            audio.ontimeupdate = () => {
+                if (previewPlayingIdRef.current === id) {
+                    const progress = (audio.currentTime / audio.duration) * 100;
+                    setPreviewProgress(isNaN(progress) ? 0 : progress);
+                }
+            };
+
+            audio.onended = () => {
+                if (previewPlayingIdRef.current === id) {
+                    setPreviewPlayingId(null);
+                    previewPlayingIdRef.current = null;
+                    setPreviewProgress(0);
+                }
+            };
+
+            audio.play().catch(e => {
+                console.error("Preview playback failed:", e);
+                setPreviewPlayingId(null);
+                previewPlayingIdRef.current = null;
+            });
+        }
+    }, []);
+
     // --- Audio Logic: Playback ---
     const playSound = useCallback((config: KeyConfig) => {
+        // Stop any existing playback progress tracker
+        if (playbackAnimationFrameRef.current) {
+            cancelAnimationFrame(playbackAnimationFrameRef.current);
+            playbackAnimationFrameRef.current = null;
+        }
+
         // Record Macro Logic
         if (isRecordingMacro && !isPlayingMacro) {
             const now = Date.now();
@@ -184,12 +242,43 @@ const App: React.FC = () => {
 
         const buffer = audioBuffersRef.current[config.id];
         if (buffer) {
+            // Stop any existing HTML audio preview
+            if (previewAudioRef.current) {
+                previewAudioRef.current.pause();
+                previewAudioRef.current = null;
+            }
+
             playBuffer(buffer);
+
+            const ctx = getAudioContext();
+            const startTime = ctx.currentTime;
+            const duration = buffer.duration;
+
+            setPreviewPlayingId(config.id);
+            previewPlayingIdRef.current = config.id;
+            setPreviewProgress(0);
+
+            const update = () => {
+                const now = ctx.currentTime;
+                const elapsed = now - startTime;
+                const progress = Math.min(100, (elapsed / duration) * 100);
+
+                if (progress < 100 && previewPlayingIdRef.current === config.id) {
+                    setPreviewProgress(progress);
+                    playbackAnimationFrameRef.current = requestAnimationFrame(update);
+                } else if (previewPlayingIdRef.current === config.id) {
+                    setPreviewPlayingId(null);
+                    previewPlayingIdRef.current = null;
+                    setPreviewProgress(0);
+                    playbackAnimationFrameRef.current = null;
+                }
+            };
+            playbackAnimationFrameRef.current = requestAnimationFrame(update);
         } else if (config.audioUrl) {
-            const audio = new Audio(config.audioUrl);
-            audio.play().catch(e => console.error("Playback failed:", e));
+            // For simple playSound from button, use the same tracking logic
+            toggleButtonPreview(config.id, config.audioUrl);
         }
-    }, [isRecordingMacro, lastMacroStepTime, isPlayingMacro]);
+    }, [isRecordingMacro, lastMacroStepTime, isPlayingMacro, previewPlayingId, toggleButtonPreview]);
 
     // --- Audio Logic: Recording ---
     const startRecording = async (id: string) => {
@@ -275,43 +364,6 @@ const App: React.FC = () => {
         }
     };
 
-    // --- Edit Mode Preview Logic ---
-    const toggleButtonPreview = (id: string, url: string) => {
-        if (previewPlayingId === id) {
-            if (previewAudioRef.current) {
-                previewAudioRef.current.pause();
-                previewAudioRef.current = null;
-            }
-            setPreviewPlayingId(null);
-            setPreviewProgress(0);
-        } else {
-            // Stop any existing preview
-            if (previewAudioRef.current) {
-                previewAudioRef.current.pause();
-            }
-
-            const audio = new Audio(url);
-            previewAudioRef.current = audio;
-            setPreviewPlayingId(id);
-            setPreviewProgress(0);
-
-            audio.ontimeupdate = () => {
-                const progress = (audio.currentTime / audio.duration) * 100;
-                setPreviewProgress(isNaN(progress) ? 0 : progress);
-            };
-
-            audio.onended = () => {
-                setPreviewPlayingId(null);
-                setPreviewProgress(0);
-                previewAudioRef.current = null;
-            };
-
-            audio.play().catch(e => {
-                console.error("Preview playback failed", e);
-                setPreviewPlayingId(null);
-            });
-        }
-    };
 
     const savePendingRecording = async () => {
         if (!pendingRecording) return;
@@ -1010,6 +1062,7 @@ const App: React.FC = () => {
                                                         }}
                                                         isSelected={editingButtonId === config.id}
                                                         isActive={previewPlayingId === config.id}
+                                                        progress={previewPlayingId === config.id ? previewProgress : 0}
                                                         isEditing={isEditing}
                                                         soundType={settings.soundType}
                                                         glowType={settings.glowType}
@@ -1029,6 +1082,8 @@ const App: React.FC = () => {
                                                 config={buttons.find(b => b.id === activeDragId)!}
                                                 onClick={() => { }}
                                                 isSelected={true}
+                                                isActive={previewPlayingId === activeDragId}
+                                                progress={previewPlayingId === activeDragId ? previewProgress : 0}
                                                 soundType={settings.soundType}
                                                 glowType={settings.glowType}
                                             />
@@ -1287,6 +1342,7 @@ const App: React.FC = () => {
                                             config={config}
                                             onClick={playSound}
                                             isActive={previewPlayingId === config.id}
+                                            progress={previewPlayingId === config.id ? previewProgress : 0}
                                             soundType={settings.soundType}
                                             glowType={settings.glowType}
                                         />

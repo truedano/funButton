@@ -10,11 +10,12 @@ interface KeyButtonProps {
   disabled?: boolean;
   isSelected?: boolean;
   isActive?: boolean;
+  progress?: number;
   soundType?: SoundType;
   glowType?: GlowType;
 }
 
-const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSelected, isActive, soundType, glowType = 'none' }) => {
+const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSelected, isActive, progress, soundType, glowType = 'none' }) => {
   const [isPressed, setIsPressed] = React.useState(false);
   const isPredefinedColor = ['white', 'yellow', 'blue', 'red', 'green', 'purple', 'orange'].includes(config.color);
 
@@ -47,7 +48,7 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
   };
 
   // Styles mimic a high-profile mechanical keycap with 3D depth
-  const baseStyles = "relative w-full aspect-square rounded-xl transition-all duration-100 flex items-center justify-center select-none group active:scale-[0.98] border-b-4 border-r-2 border-l border-t";
+  const baseStyles = "relative w-full aspect-square rounded-xl transition-all duration-100 flex items-center justify-center select-none group active:scale-[0.98] border-b-4 border-r-2 border-l border-t overflow-hidden";
 
   // 3D effect using box-shadow and translation - adjusted to work with real borders
   const shadowStyles = "shadow-[0_4px_0_rgba(0,0,0,0.1)] active:shadow-none active:translate-y-[4px]";
@@ -97,7 +98,7 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
 
   return (
     <button
-      className={`${baseStyles} ${getPredefinedClassNames(config.color)} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${isSelected ? 'ring-4 ring-blue-400 ring-offset-4 scale-105' : ''} ${isActive ? 'translate-y-[4px] shadow-none ring-2 ring-white/50' : shadowStyles}`}
+      className={`${baseStyles} ${getPredefinedClassNames(config.color)} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${isSelected ? 'ring-4 ring-blue-400 ring-offset-4 scale-105' : ''} ${isActive ? 'translate-y-[2px] shadow-none ring-2 ring-white/50' : shadowStyles}`}
       style={{
         ...(!isPredefinedColor ? getDynamicStyles() : {}),
         ...(config.textColor ? { color: config.textColor } : {}),
@@ -121,6 +122,17 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
       onPointerLeave={() => setIsPressed(false)}
       disabled={disabled}
     >
+      {/* Progress Bar Overlay - Bottom layer of content */}
+      {isActive && progress !== undefined && (
+        <div
+          className="absolute left-0 top-0 bottom-0 bg-green-500/30 pointer-events-none z-[5]"
+          style={{
+            width: `${progress}%`,
+            transition: progress === 0 ? 'none' : 'width 100ms linear'
+          }}
+        />
+      )}
+
       {/* Glow Aura (Bottom Layer) */}
       {glowType === 'aura' && (
         <div
@@ -137,6 +149,7 @@ const KeyButton: React.FC<KeyButtonProps> = ({ config, onClick, disabled, isSele
       {isSelected && (
         <div className="absolute -inset-2 rounded-2xl bg-blue-400/20 blur-xl animate-pulse pointer-events-none" />
       )}
+
 
       {/* Image Texture (Top Layer Sticker) */}
       {config.imageUrl && (

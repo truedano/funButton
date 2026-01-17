@@ -10,6 +10,7 @@ interface SortableKeyButtonProps {
     onClick: (config: KeyConfig) => void;
     isSelected: boolean;
     isActive: boolean;
+    progress?: number;
     disabled?: boolean;
     isEditing: boolean;
     soundType?: SoundType;
@@ -22,6 +23,7 @@ const SortableKeyButton: React.FC<SortableKeyButtonProps> = ({
     onClick,
     isSelected,
     isActive,
+    progress,
     disabled,
     isEditing,
     soundType,
@@ -55,6 +57,7 @@ const SortableKeyButton: React.FC<SortableKeyButtonProps> = ({
                 onClick={onClick}
                 isSelected={isSelected}
                 isActive={isActive}
+                progress={progress}
                 disabled={disabled}
                 soundType={soundType}
                 glowType={glowType}
